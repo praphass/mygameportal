@@ -1,0 +1,2642 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>ศึกส่งกระทงไปให้ถึงฝัน - Loy Krathong Distance Challenge</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts: Kanit & Charm -->
+    <link href="https://fonts.googleapis.com/css2?family=Charm:wght@700&family=Kanit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        * {
+            user-select: none;
+            -webkit-user-select: none;
+            font-family: 'Kanit', sans-serif;
+        }
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #060b19;
+        }
+        .font-thai-title {
+            font-family: 'Charm', cursive;
+        }
+        #gameCanvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+            touch-action: none;
+        }
+        /* Custom Animations & Glassmorphism */
+        .night-glass {
+            background: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(251, 191, 36, 0.35);
+            box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.7), 0 0 20px rgba(245, 158, 11, 0.15);
+        }
+        .gold-btn {
+            background: linear-gradient(135deg, #fbbf24 0%, #d97706 100%);
+            box-shadow: 0 4px 15px rgba(245, 158, 11, 0.4), inset 0 2px 2px rgba(255, 255, 255, 0.4);
+            transition: all 0.15s ease;
+        }
+        .gold-btn:hover:not(:disabled) {
+            transform: translateY(-2px) scale(1.02);
+            box-shadow: 0 6px 20px rgba(245, 158, 11, 0.6), inset 0 2px 2px rgba(255, 255, 255, 0.5);
+        }
+        .gold-btn:active:not(:disabled) {
+            transform: translateY(1px) scale(0.98);
+        }
+        .water-btn {
+            background: linear-gradient(135deg, #38bdf8 0%, #0284c7 100%);
+            box-shadow: 0 4px 15px rgba(56, 189, 248, 0.4), inset 0 2px 2px rgba(255, 255, 255, 0.4);
+            transition: all 0.15s ease;
+        }
+        .water-btn:active:not(:disabled) {
+            transform: scale(0.95);
+        }
+        .krathong-card {
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            border: 2px solid rgba(255, 255, 255, 0.1);
+        }
+        .krathong-card.selected {
+            border-color: #fbbf24;
+            background: rgba(251, 191, 36, 0.15);
+            box-shadow: 0 0 20px rgba(251, 191, 36, 0.3);
+            transform: translateY(-4px);
+        }
+        @keyframes floatSlow {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-6px); }
+        }
+        .animate-float {
+            animation: floatSlow 3s ease-in-out infinite;
+        }
+        @keyframes pulseDanger {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.08); opacity: 0.85; }
+        }
+        .danger-alert {
+            animation: pulseDanger 0.7s infinite;
+        }
+    </style>
+</head>
+<body class="relative select-none text-amber-50">
+
+    <!-- Main Game Canvas -->
+    <canvas id="gameCanvas"></canvas>
+
+    <!-- Top HUD Bar -->
+    <div class="fixed top-0 left-0 right-0 p-3 sm:p-4 flex justify-between items-start pointer-events-none z-20">
+        <!-- Distance & Speed Info -->
+        <div class=" flex flex-wrap gap-2 sm:gap-3 items-center pointer-events-auto">
+            <div class="night-glass px-4 py-2 rounded-2xl flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-400/40 flex items-center justify-center text-amber-400 text-xl">
+                    <i class="fa-solid fa-dharmachakra fa-spin" style="animation-duration: 10s;"></i>
+                </div>
+                <div>
+                    <div class="text-xs text-amber-200/70 uppercase tracking-wider">ระยะทางปัจจุบัน</div>
+                    <div class="text-2xl sm:text-3xl font-bold text-amber-300 leading-none">
+                        <span id="currentDistanceText">0.0</span> <span class="text-sm font-normal text-amber-100">เมตร</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="night-glass px-3.5 py-2 rounded-2xl flex items-center gap-2.5">
+                <div class="text-amber-400 text-lg"><i class="fa-solid fa-trophy"></i></div>
+                <div>
+                    <div class="text-[11px] text-amber-200/70">สถิติไกลสุด</div>
+                    <div class="text-lg font-bold text-white leading-tight"><span id="bestDistanceText">0.0</span> ม.</div>
+                </div>
+            </div>
+
+            <!-- Krathong Integrity / Ice Melt or Stability Bar -->
+            <div id="statusHudBox" class="hidden night-glass px-3.5 py-2 rounded-2xl flex flex-col justify-center min-w-[130px]">
+                <div class="flex justify-between text-[11px] text-sky-200 mb-1">
+                    <span id="statusHudLabel">ความสมบูรณ์กระทง</span>
+                    <span id="statusHudPct">100%</span>
+                </div>
+                <div class="w-full h-2.5 bg-slate-800 rounded-full overflow-hidden border border-slate-600">
+                    <div id="statusHudBar" class="h-full bg-gradient-to-r from-emerald-400 to-amber-400 transition-all duration-150" style="width: 100%;"></div>
+                </div>
+            </div>
+
+            <!-- Momentum Reserve Gauge (แรงเฉื่อยสะสมจากการเหวี่ยง) -->
+            <div id="momentumHudBox" class="hidden night-glass px-3.5 py-2 rounded-2xl flex flex-col justify-center min-w-[145px]">
+                <div class="flex justify-between text-[11px] text-amber-200 mb-1 gap-2">
+                    <span><i class="fa-solid fa-wind text-amber-400"></i> แรงส่งคงเหลือ</span>
+                    <span id="momentumHudPct" class="font-bold text-amber-300">100%</span>
+                </div>
+                <div class="w-full h-2.5 bg-slate-800 rounded-full overflow-hidden border border-slate-600">
+                    <div id="momentumHudBar" class="h-full bg-gradient-to-r from-amber-500 via-yellow-400 to-sky-400 transition-all duration-150" style="width: 100%;"></div>
+                </div>
+            </div>
+
+            <!-- Journey Progress & Automatic POV Zone Indicator -->
+            <div id="journeyProgressBox" class="hidden night-glass px-3.5 py-2 rounded-2xl flex flex-col justify-center min-w-[185px] sm:min-w-[235px]">
+                <div class="flex justify-between items-center text-[10px] sm:text-[11px] text-amber-200 mb-1 gap-2">
+                    <span id="cameraModeBadge" class="bg-amber-500/20 border border-amber-400/40 text-amber-300 px-1.5 py-0.2 rounded font-semibold">📐 มุมมองด้านข้าง</span>
+                    <span class="text-slate-300">ฝัน: <b class="text-amber-300">240 ม.</b></span>
+                </div>
+                <div class="relative w-full h-2.5 bg-slate-800 rounded-full overflow-hidden border border-slate-600">
+                    <!-- Highlighted Automatic Mid-way POV Zone (95m to 180m out of 240m => 39.5% to 75%) -->
+                    <div class="absolute top-0 bottom-0 bg-purple-500/35 border-x border-purple-400/60" style="left: 39.5%; width: 35.5%;" title="โซนมุมมอง POV อัตโนมัติกลางทาง (95-180 ม.)"></div>
+                    <div id="journeyProgressBar" class="h-full bg-gradient-to-r from-sky-400 via-amber-400 to-emerald-400 transition-all duration-150 relative z-10" style="width: 0%;"></div>
+                </div>
+                <div class="flex justify-between text-[9px] text-slate-400 mt-0.5">
+                    <span>0ม.</span>
+                    <span class="text-purple-300 font-medium">🎥 โซน POV (95-180ม.)</span>
+                    <span class="text-emerald-300">240ม.</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sound & Reset Controls (No manual POV button) -->
+        <div class="flex gap-2 pointer-events-auto">
+            <button id="btnChangeKrathong" class="night-glass hover:bg-slate-800/90 text-amber-200 px-3 py-2 rounded-xl text-xs sm:text-sm font-medium flex items-center gap-1.5 transition">
+                <i class="fa-solid fa-sliders"></i> <span class="hidden sm:inline">เปลี่ยนกระทง</span>
+            </button>
+            <button id="btnToggleSound" class="night-glass hover:bg-slate-800/90 text-amber-300 w-10 h-10 rounded-xl flex items-center justify-center text-lg transition" title="เปิด/ปิดเสียง">
+                <i id="soundIcon" class="fa-solid fa-volume-high"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- Cinematic Camera Mode Transition Banner -->
+    <div id="cameraTransitionBanner" class="hidden fixed top-32 left-1/2 -translate-x-1/2 z-20 pointer-events-none transition-all duration-300">
+        <div class="night-glass bg-purple-950/90 border-2 border-purple-400 text-white px-5 py-2.5 rounded-2xl shadow-2xl flex items-center gap-3">
+            <i class="fa-solid fa-camera-rotate text-2xl text-amber-300 animate-spin" style="animation-duration: 2s;"></i>
+            <div class="text-left">
+                <div id="camBannerTitle" class="text-sm sm:text-base font-bold text-amber-300">🎥 เข้าสู่มุมมอง POV กลางลำน้ำ!</div>
+                <div id="camBannerSub" class="text-[11px] sm:text-xs text-purple-200">ระวังเด็กดำน้ำโผล่ตรงหน้า! กดเบี่ยงซ้าย/ขวาเพื่อหลบ</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Center Floating Notifications & Snatcher Warning -->
+    <div id="warningBanner" class="hidden fixed top-20 left-1/2 -translate-x-1/2 z-20 pointer-events-none">
+        <div class="bg-red-600/90 border-2 border-yellow-300 text-white px-4 py-1.5 rounded-full shadow-lg flex items-center gap-2 danger-alert text-xs sm:text-sm font-bold whitespace-nowrap">
+            <i class="fa-solid fa-triangle-exclamation text-yellow-300"></i>
+            <span id="warningText">ระวัง! เด็กซุ่มเก็บเหรียญข้างหน้า!</span>
+        </div>
+    </div>
+
+    <!-- Interactive Guidance During Aiming Phase -->
+    <div id="aimGuideOverlay" class="hidden fixed bottom-24 left-1/2 -translate-x-1/2 z-10 pointer-events-none text-center w-11/12 max-w-md">
+        <div class="night-glass px-4 py-2.5 rounded-2xl inline-block border border-amber-400/40">
+            <p class="text-amber-300 font-semibold text-sm sm:text-base flex items-center justify-center gap-2">
+                <i class="fa-solid fa-hand-back-fist animate-bounce"></i>
+                คลิกค้างหรือแตะลาก "มือ" ถอยหลัง แล้วสะบัดผลักไปข้างหน้า!
+            </p>
+            <p class="text-xs text-slate-300 mt-0.5">ระวัง: ผลักแรงเกินหรือกดมุมต่ำไป กระทงอาจคว่ำหน้าท่าได้</p>
+        </div>
+    </div>
+
+    <!-- Bottom Floating Action Controls (During Sailing Phase) -->
+    <div id="sailingControls" class="hidden fixed bottom-5 left-1/2 -translate-x-1/2 z-20 flex items-center gap-3 sm:gap-4 px-4 w-full max-w-lg justify-center pointer-events-auto">
+        <!-- Splash Forward Boost -->
+        <button id="btnSplashForward" class="water-btn text-white font-bold px-5 py-3 rounded-2xl flex items-center gap-3 flex-1 justify-center shadow-xl">
+            <i class="fa-solid fa-water text-xl"></i>
+            <div class="text-left leading-tight">
+                <div class="text-sm sm:text-base">วักน้ำส่งแรงพุ่ง</div>
+                <div class="text-[11px] text-sky-100 font-normal">เหลือ <span id="splashCountText" class="font-bold underline">3</span> ครั้ง (Spacebar)</div>
+            </div>
+        </button>
+
+        <!-- Splash Up/Down Evasion (Dodge Snatchers/Whirlpools) -->
+        <div class="flex flex-col gap-1.5">
+            <button id="btnDodgeUp" class="night-glass hover:bg-sky-900/60 active:scale-95 text-sky-200 px-3.5 py-1.5 rounded-xl text-xs font-medium flex items-center gap-1.5 border border-sky-400/30">
+                <i id="dodgeUpIcon" class="fa-solid fa-arrow-up"></i> <span id="dodgeUpText">วักเบี่ยงขึ้น (W/↑)</span>
+            </button>
+            <button id="btnDodgeDown" class="night-glass hover:bg-sky-900/60 active:scale-95 text-sky-200 px-3.5 py-1.5 rounded-xl text-xs font-medium flex items-center gap-1.5 border border-sky-400/30">
+                <i id="dodgeDownIcon" class="fa-solid fa-arrow-down"></i> <span id="dodgeDownText">วักเบี่ยงลง (S/↓)</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Modal 1: Start & Krathong Selection Screen -->
+    <div id="selectionModal" class="fixed inset-0 z-30 flex items-center justify-center p-3 sm:p-4 bg-slate-950/80 backdrop-blur-md overflow-y-auto">
+        <div class="night-glass rounded-3xl max-w-2xl w-full p-5 sm:p-7 border-2 border-amber-400/40 my-auto">
+            <div class="text-center mb-5">
+                <div class="inline-block bg-amber-500/20 text-amber-300 border border-amber-400/40 px-3 py-1 rounded-full text-xs font-semibold mb-2">
+                    🌕 เทศกาลวันเพ็ญเดือนสิบสอง
+                </div>
+                <h1 class="font-thai-title text-3xl sm:text-5xl text-transparent bg-clip-text bg-gradient-to-r from-amber-200 via-yellow-400 to-orange-400 drop-shadow">
+                    ศึกส่งกระทงไปให้ถึงฝัน
+                </h1>
+                <p class="text-slate-300 text-xs sm:text-sm mt-1">
+                    กะจังหวะเหวี่ยงมือส่งกระทงลงน้ำให้ไกลที่สุด หลบแก๊งเด็กดำน้ำดักเก็บเหรียญ 10 บาท!
+                </p>
+            </div>
+
+            <!-- Select Krathong Type -->
+            <div class="mb-5">
+                <h2 class="text-sm font-semibold text-amber-200 mb-2.5 flex items-center gap-2">
+                    <i class="fa-solid fa-leaf text-emerald-400"></i> เลือกกระทงคู่ใจของคุณ (มีผลต่อน้ำหนักและฟิสิกส์การผลัก):
+                </h2>
+                <div class="grid grid-cols-1 sm:grid-cols-4 gap-3" id="krathongCardsContainer">
+                    <!-- Banana Leaf Krathong -->
+                    <div data-type="banana" class="krathong-card selected cursor-pointer rounded-2xl p-3.5 bg-slate-900/60 flex flex-col justify-between">
+                        <div>
+                            <div class="flex justify-between items-start mb-2">
+                                <span class="text-3xl">🪷</span>
+                                <span class="text-[11px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-2 py-0.5 rounded-full">สมดุลยอดฮิต</span>
+                            </div>
+                            <h3 class="font-bold text-amber-300 text-base">กระทงใบตองต้นกล้วย</h3>
+                            <p class="text-xs text-slate-300 mt-1">น้ำหนักกำลังดี ทรงตัวง่าย ซ่อนเหรียญ 10 บาทไว้ใต้ดอกไม้</p>
+                        </div>
+                        <div class="mt-3 pt-2 border-t border-slate-700/70 text-[11px] space-y-1 text-slate-300">
+                            <div class="flex justify-between"><span>น้ำหนัก:</span> <span class="text-amber-300 font-semibold">1.2 กก.</span></div>
+                            <div class="flex justify-between"><span>วักน้ำช่วย:</span> <span class="text-sky-300 font-semibold">4 ครั้ง</span></div>
+                            <div class="flex justify-between"><span>จุดอ่อน:</span> <span class="text-rose-300">เด็กชอบมาก!</span></div>
+                        </div>
+                    </div>
+
+                    <!-- Bread Krathong -->
+                    <div data-type="bread" class="krathong-card cursor-pointer rounded-2xl p-3.5 bg-slate-900/60 flex flex-col justify-between">
+                        <div>
+                            <div class="flex justify-between items-start mb-2">
+                                <span class="text-3xl">🥖</span>
+                                <span class="text-[11px] bg-amber-500/20 text-amber-300 border border-amber-500/30 px-2 py-0.5 rounded-full">สายถึกหนักแน่น</span>
+                            </div>
+                            <h3 class="font-bold text-amber-300 text-base">กระทงขนมปังจัมโบ้</h3>
+                            <p class="text-xs text-slate-300 mt-1">เนื้อแน่นหนักมาก ฝ่าคลื่นเรือด่วนได้ดีเยี่ยม</p>
+                        </div>
+                        <div class="mt-3 pt-2 border-t border-slate-700/70 text-[11px] space-y-1 text-slate-300">
+                            <div class="flex justify-between"><span>น้ำหนัก:</span> <span class="text-amber-300 font-semibold">2.5 กก.</span></div>
+                            <div class="flex justify-between"><span>วักน้ำช่วย:</span> <span class="text-sky-300 font-semibold">3 ครั้ง</span></div>
+                            <div class="flex justify-between"><span>จุดอ่อน:</span> <span class="text-rose-300">ปลาสวายชอบ!</span></div>
+                        </div>
+                    </div>
+
+                    <!-- Ice Krathong -->
+                    <div data-type="ice" class="krathong-card cursor-pointer rounded-2xl p-3.5 bg-slate-900/60 flex flex-col justify-between">
+                        <div>
+                            <div class="flex justify-between items-start mb-2">
+                                <span class="text-3xl">🧊</span>
+                                <span class="text-[11px] bg-sky-500/20 text-sky-300 border border-sky-500/30 px-2 py-0.5 rounded-full">สายสปีดรักษ์โลก</span>
+                            </div>
+                            <h3 class="font-bold text-amber-300 text-base">กระทงน้ำแข็งแกะสลัก</h3>
+                            <p class="text-xs text-slate-300 mt-1">เบาพุ่งฉิว สะบัดมือเบาๆ แต่ละลายเร็วและคว่ำง่าย</p>
+                        </div>
+                        <div class="mt-3 pt-2 border-t border-slate-700/70 text-[11px] space-y-1 text-slate-300">
+                            <div class="flex justify-between"><span>น้ำหนัก:</span> <span class="text-amber-300 font-semibold">0.6 กก.</span></div>
+                            <div class="flex justify-between"><span>วักน้ำช่วย:</span> <span class="text-sky-300 font-semibold">5 ครั้ง</span></div>
+                            <div class="flex justify-between"><span>จุดอ่อน:</span> <span class="text-rose-300">ละลายง่าย</span></div>
+                        </div>
+                    </div>
+
+                    <!-- Custom Upload Krathong -->
+                    <div data-type="custom" class="krathong-card cursor-pointer rounded-2xl p-3.5 bg-slate-900/60 flex flex-col justify-between relative overflow-hidden">
+                        <div>
+                            <div class="flex justify-between items-start mb-2">
+                                <span class="text-3xl" id="customCardEmoji">📷</span>
+                                <span class="text-[11px] bg-purple-500/20 text-purple-300 border border-purple-500/30 px-2 py-0.5 rounded-full">กระทงส่วนตัว</span>
+                            </div>
+                            <h3 class="font-bold text-amber-300 text-base">อัปโหลดรูปกระทง</h3>
+                            <p class="text-xs text-slate-300 mt-1">อัปโหลดภาพถ่ายหรือรูปวาดกระทงของคุณเองมาลอยในเกม</p>
+                        </div>
+                        <div class="mt-3 pt-2 border-t border-slate-700/70">
+                            <label for="customKrathongInput" class="w-full bg-purple-600/80 hover:bg-purple-500 text-white text-xs font-semibold py-1.5 px-3 rounded-xl flex items-center justify-center gap-1.5 cursor-pointer transition">
+                                <i class="fa-solid fa-cloud-arrow-up"></i> เลือกรูปภาพ...
+                            </label>
+                            <input type="file" id="customKrathongInput" accept="image/*" class="hidden">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- How to Play Summary -->
+            <div class="bg-slate-900/80 rounded-2xl p-3.5 mb-5 border border-slate-700/80 text-xs text-slate-300 grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                <div class="flex items-start gap-2">
+                    <span class="bg-amber-500/20 text-amber-300 w-6 h-6 rounded-lg flex items-center justify-center font-bold shrink-0">1</span>
+                    <span><b>ง้างมือแล้วผลัก:</b> ลากมือจำลองไปด้านหลังแล้วเหวี่ยงปล่อยไปข้างหน้าด้วยความเร็วและมุมที่เหมาะสม</span>
+                </div>
+                <div class="flex items-start gap-2">
+                    <span class="bg-sky-500/20 text-sky-300 w-6 h-6 rounded-lg flex items-center justify-center font-bold shrink-0">2</span>
+                    <span><b>วักน้ำช่วยพยุง:</b> กดปุ่มวักน้ำเพื่อเร่งความเร็วหนี หรือเบี่ยงหลบน้ำวนและมือเด็ก</span>
+                </div>
+                <div class="flex items-start gap-2">
+                    <span class="bg-rose-500/20 text-rose-300 w-6 h-6 rounded-lg flex items-center justify-center font-bold shrink-0">3</span>
+                    <span><b>ระวังสกัดดาวรุ่ง:</b> แก๊งเด็กดำน้ำเก็บเหรียญ ปลาชะโด/ปลาสวาย และคลื่นเรือด่วนเจ้าพระยา!</span>
+                </div>
+            </div>
+
+            <button id="btnStartGame" class="gold-btn w-full py-3.5 rounded-2xl text-slate-950 font-bold text-lg flex items-center justify-center gap-2">
+                <i class="fa-solid fa-hands-praying"></i> อธิษฐานแล้วไปที่ท่าน้ำเลย!
+            </button>
+        </div>
+    </div>
+
+    <!-- Modal 2: Game Over / Result Summary Modal -->
+    <div id="resultModal" class="hidden fixed inset-0 z-30 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
+        <div class="night-glass rounded-3xl max-w-md w-full p-6 border-2 border-amber-400/40 text-center animate-float">
+            <div id="resultEmoji" class="text-6xl mb-2">👦🏽🪙</div>
+            <div id="resultBadge" class="inline-block bg-rose-500/20 text-rose-300 border border-rose-400/40 px-3 py-0.5 rounded-full text-xs font-semibold mb-2">
+                กระทงไปไม่ถึงฝัน!
+            </div>
+            <h2 id="resultTitle" class="text-2xl sm:text-3xl font-bold text-amber-300 mb-2">
+                โดนเด็กดักเก็บเหรียญ 10 บาท!
+            </h2>
+            <p id="resultReason" class="text-sm text-slate-300 mb-5 leading-relaxed">
+                ยังไม่ทันพ้นเขตท่าน้ำวัด ด.ช.ป๋อง ก็โผล่จากใต้น้ำคว้ากระทงไปแงะเหรียญต่อหน้าต่อตา!
+            </p>
+
+            <!-- Distance Stats Card -->
+            <div class="bg-slate-900/90 rounded-2xl p-4 mb-5 border border-slate-700 grid grid-cols-2 gap-3">
+                <div class="border-r border-slate-700 pr-2">
+                    <div class="text-xs text-slate-400">ระยะทางที่ทำได้</div>
+                    <div class="text-2xl sm:text-3xl font-bold text-amber-400 mt-0.5">
+                        <span id="finalDistanceText">0.0</span> <span class="text-xs font-normal">ม.</span>
+                    </div>
+                </div>
+                <div class="pl-2">
+                    <div class="text-xs text-slate-400">สถิติไกลที่สุด</div>
+                    <div class="text-2xl sm:text-3xl font-bold text-emerald-400 mt-0.5">
+                        <span id="finalBestText">0.0</span> <span class="text-xs font-normal">ม.</span>
+                    </div>
+                </div>
+                <div class="col-span-2 pt-2 border-t border-slate-800 flex justify-between text-xs text-slate-400">
+                    <span>ความเร็วส่งตัวสูงสุด: <b id="statLaunchSpeed" class="text-sky-300">0</b> ม./วินาที</span>
+                    <span>หลบเด็กสำเร็จ: <b id="statDodgedKids" class="text-amber-300">0</b> คน</span>
+                </div>
+            </div>
+
+            <div class="flex gap-3">
+                <button id="btnRetrySame" class="gold-btn flex-1 py-3 rounded-xl text-slate-950 font-bold text-base flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-rotate-right"></i> ลอยใหม่อีกครั้ง
+                </button>
+                <button id="btnBackToSelect" class="night-glass hover:bg-slate-800 text-amber-200 px-4 py-3 rounded-xl font-medium text-sm flex items-center justify-center gap-1.5">
+                    <i class="fa-solid fa-leaf"></i> เปลี่ยนกระทง
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        /**
+         * ============================================================================
+         * 1. WEB AUDIO SYNTHESIZER (ไม่ต้องพึ่งไฟล์เสียงภายนอก)
+         * ============================================================================
+         */
+        class SoundManager {
+            constructor() {
+                this.ctx = null;
+                this.enabled = true;
+            }
+
+            init() {
+                if (!this.ctx) {
+                    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                    if (AudioCtx) this.ctx = new AudioCtx();
+                }
+                if (this.ctx && this.ctx.state === 'suspended') {
+                    this.ctx.resume();
+                }
+            }
+
+            toggle() {
+                this.enabled = !this.enabled;
+                return this.enabled;
+            }
+
+            // เสียงสะบัดมือผลักกระทง
+            playWhoosh(powerRatio = 0.5) {
+                if (!this.enabled) return;
+                this.init();
+                if (!this.ctx) return;
+
+                const now = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(140 + powerRatio * 120, now);
+                osc.frequency.exponentialRampToValueAtTime(60, now + 0.28);
+
+                gain.gain.setValueAtTime(0.3, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.28);
+
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start(now);
+                osc.stop(now + 0.29);
+            }
+
+            // เสียงน้ำกระเซ็น / วักน้ำ
+            playSplash(intensity = 1.0) {
+                if (!this.enabled) return;
+                this.init();
+                if (!this.ctx) return;
+
+                const now = this.ctx.currentTime;
+                const bufferSize = this.ctx.sampleRate * 0.35;
+                const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+                const data = buffer.getChannelData(0);
+                for (let i = 0; i < bufferSize; i++) {
+                    data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (this.ctx.sampleRate * 0.12));
+                }
+
+                const noise = this.ctx.createBufferSource();
+                noise.buffer = buffer;
+
+                const filter = this.ctx.createBiquadFilter();
+                filter.type = 'bandpass';
+                filter.frequency.setValueAtTime(550 * intensity, now);
+                filter.frequency.linearRampToValueAtTime(1200, now + 0.25);
+
+                const gain = this.ctx.createGain();
+                gain.gain.setValueAtTime(0.35 * intensity, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.35);
+
+                noise.connect(filter);
+                filter.connect(gain);
+                gain.connect(this.ctx.destination);
+                noise.start(now);
+            }
+
+            // เสียงเหรียญกรุ๊งกริ๊ง + เด็กหัวเราะเยาะ/เก็บเหรียญ
+            playCoinSnatch() {
+                if (!this.enabled) return;
+                this.init();
+                if (!this.ctx) return;
+
+                const now = this.ctx.currentTime;
+                // เสียงเหรียญ 2 จังหวะ
+                [987.77, 1318.51].forEach((freq, idx) => {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(freq, now + idx * 0.09);
+                    gain.gain.setValueAtTime(0.25, now + idx * 0.09);
+                    gain.gain.exponentialRampToValueAtTime(0.008, now + idx * 0.09 + 0.35);
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start(now + idx * 0.09);
+                    osc.stop(now + idx * 0.09 + 0.36);
+                });
+            }
+
+            // เสียงกระทงคว่ำหรือโดนปลาฮุบ
+            playFailTrombone() {
+                if (!this.enabled) return;
+                this.init();
+                if (!this.ctx) return;
+
+                const now = this.ctx.currentTime;
+                const notes = [300, 280, 260, 190];
+                notes.forEach((freq, i) => {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(freq, now + i * 0.16);
+                    if (i === 3) {
+                        osc.frequency.linearRampToValueAtTime(140, now + i * 0.16 + 0.4);
+                    }
+                    gain.gain.setValueAtTime(0.15, now + i * 0.16);
+                    gain.gain.exponentialRampToValueAtTime(0.008, now + i * 0.16 + (i === 3 ? 0.45 : 0.15));
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start(now + i * 0.16);
+                    osc.stop(now + i * 0.16 + (i === 3 ? 0.46 : 0.16));
+                });
+            }
+
+            // เสียงพลุแตกบนฟ้า
+            playFireworkPop() {
+                if (!this.enabled) return;
+                this.init();
+                if (!this.ctx) return;
+
+                const now = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(220, now);
+                osc.frequency.exponentialRampToValueAtTime(45, now + 0.15);
+                gain.gain.setValueAtTime(0.12, now);
+                gain.gain.exponentialRampToValueAtTime(0.005, now + 0.15);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start(now);
+                osc.stop(now + 0.16);
+            }
+
+            // เสียงสลับมุมกล้อง POV สุดตื่นเต้น
+            playCameraSwitch(toPOV = true) {
+                if (!this.enabled) return;
+                this.init();
+                if (!this.ctx) return;
+
+                const now = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(toPOV ? 330 : 587.33, now);
+                osc.frequency.exponentialRampToValueAtTime(toPOV ? 659.25 : 392.0, now + 0.22);
+
+                gain.gain.setValueAtTime(0.22, now);
+                gain.gain.exponentialRampToValueAtTime(0.008, now + 0.25);
+
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start(now);
+                osc.stop(now + 0.26);
+            }
+        }
+
+        const sound = new SoundManager();
+
+        /**
+         * ============================================================================
+         * 2. KRATHONG SPECS & GAME CONFIG
+         * ============================================================================
+         */
+        const POV_START_METERS = 95;   // เข้าสู่มุมมอง POV อัตโนมัติเมื่อถึงกลางทาง 95 เมตร (~40% ของเป้าหมาย)
+        const POV_END_METERS = 180;    // สลับกลับมุมมองด้านข้างอัตโนมัติเมื่อใกล้ถึงปลายทาง 180 เมตร (75% ของเป้าหมาย)
+        const DREAM_GOAL_METERS = 240; // ระยะทางสู่ฝัน 240 เมตร (ลอยทะลุต่อไปทำสถิติได้เรื่อยๆ)
+
+        const KRATHONG_TYPES = {
+            banana: {
+                id: 'banana',
+                name: 'กระทงใบตองต้นกล้วย',
+                mass: 1.2,
+                waterDrag: 0.9968,
+                momentumDecay: 0.135,
+                cruiseMaxVx: 2.35,
+                stability: 1.0,
+                maxSplashes: 4,
+                coinAttraction: 1.25,
+                fishAttraction: 0.3,
+                meltRate: 0,
+                baseColor: '#15803d',
+                petalColor: '#f43f5e'
+            },
+            bread: {
+                id: 'bread',
+                name: 'กระทงขนมปังจัมโบ้',
+                mass: 2.5,
+                waterDrag: 0.9975,
+                momentumDecay: 0.105,
+                cruiseMaxVx: 2.15,
+                stability: 1.45,
+                maxSplashes: 3,
+                coinAttraction: 0.85,
+                fishAttraction: 1.75,
+                meltRate: 0.00028,
+                baseColor: '#d97706',
+                petalColor: '#fbbf24'
+            },
+            ice: {
+                id: 'ice',
+                name: 'กระทงน้ำแข็งแกะสลัก',
+                mass: 0.6,
+                waterDrag: 0.9964,
+                momentumDecay: 0.155,
+                cruiseMaxVx: 2.65,
+                stability: 0.68,
+                maxSplashes: 5,
+                coinAttraction: 0.7,
+                fishAttraction: 0.1,
+                meltRate: 0.0011,
+                baseColor: '#38bdf8',
+                petalColor: '#e0f2fe'
+            },
+            custom: {
+                id: 'custom',
+                name: 'กระทงอัปโหลดพิเศษ',
+                mass: 1.5,
+                waterDrag: 0.9970,
+                momentumDecay: 0.125,
+                cruiseMaxVx: 2.25,
+                stability: 1.1,
+                maxSplashes: 4,
+                coinAttraction: 1.0,
+                fishAttraction: 1.0,
+                meltRate: 0,
+                baseColor: '#a855f7',
+                petalColor: '#c084fc'
+            }
+        };
+
+        const SNATCHER_NAMES = [
+            'ด.ช.ป๋อง ขาใหญ่ท่าน้ำวัด',
+            'แก๊งตี๋น้อยนักประดาน้ำ',
+            'ด.ช.จุก สายจกเหรียญสิบ',
+            'บังดีน เจ้าพ่อคุ้งน้ำ',
+            'ด.ช.เปี๊ยก ดำน้ำตั้งแต่หกโมงเย็น'
+        ];
+
+        /**
+         * ============================================================================
+         * 3. GAME STATE & VARIABLES
+         * ============================================================================
+         */
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        let W = window.innerWidth;
+        let H = window.innerHeight;
+        let riverSurfaceY = H * 0.56;
+        let riverBottomY = H * 0.94;
+        const PIXELS_PER_METER = 48; // 48 พิกเซล = 1 เมตร
+
+        let selectedTypeKey = 'banana';
+        let customKrathongImage = null; // เก็บออบเจกต์รูปภาพที่ผู้เล่นอัปโหลด
+        let bestDistance = parseFloat(localStorage.getItem('loyKrathongBestDist') || '0');
+        document.getElementById('bestDistanceText').textContent = bestDistance.toFixed(1);
+
+        // สถานะหลักของเกม: 'SELECT' | 'AIMING' | 'LAUNCHING' | 'SAILING' | 'ENDED'
+        let gameState = 'SELECT';
+        let cameraX = 0;
+
+        // สถานะมุมมองกล้องอัตโนมัติ: 'SIDE' (ด้านข้างปกติ) | 'POV' (มุมมองบุคคลที่หนึ่งช่วงกลางทาง)
+        let viewMode = 'SIDE';
+        let povPhaseState = 'BEFORE_MID'; // 'BEFORE_MID' (<95m) | 'IN_MID_POV' (95-180m) | 'AFTER_MID' (>180m)
+        let povTransitionFlash = 0;       // เอฟเฟกต์แสงแฟลชนุ่มนวลตอนสลับมุมกล้องอัตโนมัติ
+        let dreamMilestoneReached = false;
+        let bannerTimeoutId = null;
+
+        // ข้อมูลกระทงของผู้เล่น
+        let krathong = {
+            x: 240,
+            y: 0,
+            vx: 0,
+            vy: 0,
+            momentumReserve: 0,    // พลังงานเฉื่อยสะสมจากการเหวี่ยงมือ (0 - 100+)
+            maxMomentumReserve: 100,
+            laneOffsetY: 0,        // ระยะเบี่ยงขึ้น/ลงในลำน้ำ (-42 ถึง +125)
+            laneVy: 0,
+            angle: 0,
+            angularVel: 0,
+            integrity: 100,        // ความสมบูรณ์ (น้ำแข็งละลาย หรือขนมปังเปื่อย)
+            flameAlive: true,
+            submerged: 0,
+            splashesLeft: 4,
+            maxLaunchSpeed: 0,
+            dodgedKidsCount: 0,
+            grabbedByKid: null
+        };
+
+        // ข้อมูลมือจำลองและการลากสะบัด (Virtual Hand Physics)
+        let hand = {
+            isDragging: false,
+            startX: 200,
+            startY: 0,
+            currX: 190,
+            currY: 0,
+            restX: 195,
+            restY: 0,
+            pointerHistory: [], // เก็บตำแหน่งและเวลาล่าสุดเพื่อคำนวณความเร็วสะบัดจริง
+            calculatedPower: 0, // 0 - 150%
+            calculatedAngle: 0, // องศาการส่งแรง
+            pushAnimProgress: 0
+        };
+
+        // ออบเจกต์บรรยากาศและอุปสรรคในฉาก
+        let stars = [];
+        let lanterns = [];
+        let fireworks = [];
+        let waterParticles = [];
+        let floatingTexts = [];
+        let obstacles = []; // เด็กเก็บกระทง, ปลาฮุบ, คลื่นเรือด่วน, น้ำวน
+        let nextObstacleSpawnX = 650;
+
+        /**
+         * ============================================================================
+         * 4. INITIALIZATION & RESIZE HANDLING
+         * ============================================================================
+         */
+        function resizeCanvas() {
+            W = window.innerWidth;
+            H = window.innerHeight;
+            canvas.width = W;
+            canvas.height = H;
+            riverSurfaceY = Math.max(260, H * 0.56);
+            riverBottomY = H * 0.94;
+
+            if (gameState === 'AIMING' || gameState === 'SELECT') {
+                resetKrathongOnPier();
+            }
+        }
+        window.addEventListener('resize', resizeCanvas);
+
+        function initBackgroundElements() {
+            stars = [];
+            for (let i = 0; i < 85; i++) {
+                stars.push({
+                    x: Math.random() * 2000,
+                    y: Math.random() * (riverSurfaceY * 0.75),
+                    r: Math.random() * 1.8 + 0.5,
+                    alpha: Math.random() * 0.8 + 0.2,
+                    twinkleSpeed: Math.random() * 0.03 + 0.01
+                });
+            }
+
+            lanterns = [];
+            for (let i = 0; i < 16; i++) {
+                lanterns.push({
+                    x: Math.random() * 2000,
+                    y: Math.random() * (riverSurfaceY * 0.85),
+                    size: Math.random() * 12 + 10,
+                    speedY: Math.random() * 0.25 + 0.12,
+                    speedX: Math.random() * 0.2 + 0.05,
+                    swayOffset: Math.random() * Math.PI * 2
+                });
+            }
+        }
+
+        function resetKrathongOnPier() {
+            const spec = KRATHONG_TYPES[selectedTypeKey];
+            const pierEdgeX = Math.min(270, W * 0.32);
+            const waterStartY = riverSurfaceY + 45;
+
+            cameraX = 0;
+            viewMode = 'SIDE';
+            povPhaseState = 'BEFORE_MID';
+            povTransitionFlash = 0;
+            dreamMilestoneReached = false;
+            updateSteeringButtonLabels();
+
+            krathong = {
+                x: pierEdgeX,
+                y: waterStartY,
+                vx: 0,
+                vy: 0,
+                momentumReserve: 0,
+                maxMomentumReserve: 100,
+                laneOffsetY: 0,
+                laneVy: 0,
+                angle: 0,
+                angularVel: 0,
+                integrity: 100,
+                flameAlive: true,
+                submerged: 0,
+                splashesLeft: spec.maxSplashes,
+                maxLaunchSpeed: 0,
+                dodgedKidsCount: 0,
+                grabbedByKid: null
+            };
+
+            hand.restX = pierEdgeX - 58;
+            hand.restY = waterStartY - 12;
+            hand.currX = hand.restX;
+            hand.currY = hand.restY;
+            hand.isDragging = false;
+            hand.calculatedPower = 0;
+            hand.calculatedAngle = 0;
+            hand.pushAnimProgress = 0;
+
+            obstacles = [];
+            waterParticles = [];
+            floatingTexts = [];
+            nextObstacleSpawnX = pierEdgeX + 420;
+
+            updateHUD();
+        }
+
+        /**
+         * ============================================================================
+         * 5. VIRTUAL HAND DRAG & SWIPE / FLING INPUT PHYSICS
+         * ============================================================================
+         */
+        function getPointerPos(e) {
+            if (e.touches && e.touches.length > 0) {
+                return { x: e.touches[0].clientX, y: e.touches[0].clientY };
+            } else if (e.changedTouches && e.changedTouches.length > 0) {
+                return { x: e.changedTouches[0].clientX, y: e.changedTouches[0].clientY };
+            }
+            return { x: e.clientX, y: e.clientY };
+        }
+
+        function handlePointerDown(e) {
+            if (gameState !== 'AIMING') return;
+            const pos = getPointerPos(e);
+            sound.init();
+
+            hand.isDragging = true;
+            hand.startX = pos.x;
+            hand.startY = pos.y;
+            hand.currX = hand.restX;
+            hand.currY = hand.restY;
+            hand.pointerHistory = [{ x: pos.x, y: pos.y, t: performance.now() }];
+        }
+
+        function handlePointerMove(e) {
+            if (gameState !== 'AIMING' || !hand.isDragging) return;
+            const pos = getPointerPos(e);
+            const now = performance.now();
+
+            hand.pointerHistory.push({ x: pos.x, y: pos.y, t: now });
+            // เก็บประวัติช่วง 130ms ล่าสุดเพื่อวัดความเร็วการสะบัดนิ้ว/เมาส์
+            while (hand.pointerHistory.length > 2 && now - hand.pointerHistory[0].t > 130) {
+                hand.pointerHistory.shift();
+            }
+
+            // คำนวณระยะง้างมือจากจุดเริ่มต้น หรือการลากถอยหลังแล้วดันไปข้างหน้า
+            const dxFromStart = pos.x - hand.startX;
+            const dyFromStart = pos.y - hand.startY;
+
+            // จำกัดขอบเขตการขยับมือจำลองรอบๆ ท่าน้ำ
+            const clampedDx = Math.max(-150, Math.min(90, dxFromStart));
+            const clampedDy = Math.max(-90, Math.min(90, dyFromStart));
+            hand.currX = hand.restX + clampedDx;
+            hand.currY = hand.restY + clampedDy;
+
+            // คำนวณทั้งแรงง้าง (Pullback Sling) + ความเร็วสะบัด (Swipe Velocity)
+            const pullBackDist = Math.max(0, -(clampedDx - 30));
+            const oldest = hand.pointerHistory[0];
+            const dt = Math.max(16, now - oldest.t);
+            const swipeVx = (pos.x - oldest.x) / dt; // px per ms
+            const swipeVy = (pos.y - oldest.y) / dt;
+
+            const spec = KRATHONG_TYPES[selectedTypeKey];
+            // ผสมผสานระหว่างระยะง้างมือและแรงสะบัดไปข้างหน้า
+            let rawForce = (pullBackDist * 0.72) + Math.max(0, swipeVx * 38);
+            // หารด้วยรากที่สองของมวล เพื่อให้กระทงหนักต้องออกแรงเยอะกว่า
+            let powerPct = (rawForce / Math.sqrt(spec.mass)) * 1.15;
+
+            hand.calculatedPower = Math.max(0, Math.min(145, powerPct));
+
+            // คำนวณมุมเหวี่ยง (องศา)
+            let rawAngleDeg = 0;
+            if (Math.abs(swipeVx) > 0.35) {
+                rawAngleDeg = Math.atan2(swipeVy, Math.abs(swipeVx)) * (180 / Math.PI);
+            } else {
+                rawAngleDeg = Math.atan2(-clampedDy, Math.max(30, Math.abs(clampedDx))) * (180 / Math.PI);
+            }
+            hand.calculatedAngle = Math.max(-45, Math.min(45, rawAngleDeg));
+        }
+
+        function handlePointerUp(e) {
+            if (gameState !== 'AIMING' || !hand.isDragging) return;
+            hand.isDragging = false;
+
+            // ถ้าง้างหรือขยับน้อยเกินไป ให้ยกเลิกการปล่อย
+            if (hand.calculatedPower < 8) {
+                hand.currX = hand.restX;
+                hand.currY = hand.restY;
+                hand.calculatedPower = 0;
+                return;
+            }
+
+            executeKrathongPush(hand.calculatedPower, hand.calculatedAngle);
+        }
+
+        canvas.addEventListener('mousedown', handlePointerDown);
+        window.addEventListener('mousemove', handlePointerMove);
+        window.addEventListener('mouseup', handlePointerUp);
+
+        canvas.addEventListener('touchstart', (e) => { e.preventDefault(); handlePointerDown(e); }, { passive: false });
+        window.addEventListener('touchmove', (e) => { if (hand.isDragging) e.preventDefault(); handlePointerMove(e); }, { passive: false });
+        window.addEventListener('touchend', handlePointerUp);
+
+        /**
+         * ============================================================================
+         * 6. LAUNCH & RIVER PHYSICS LOGIC (SLOW & SUSPENSEFUL MOMENTUM GLIDE)
+         * ============================================================================
+         */
+        function executeKrathongPush(powerPct, angleDeg) {
+            const spec = KRATHONG_TYPES[selectedTypeKey];
+            gameState = 'SAILING';
+            document.getElementById('aimGuideOverlay').classList.add('hidden');
+            document.getElementById('sailingControls').classList.remove('hidden');
+            document.getElementById('statusHudBox').classList.remove('hidden');
+            document.getElementById('momentumHudBox').classList.remove('hidden');
+            document.getElementById('journeyProgressBox').classList.remove('hidden');
+
+            sound.playWhoosh(Math.min(1, powerPct / 100));
+            setTimeout(() => sound.playSplash(0.8), 110);
+
+            // แปลงแรงเหวี่ยงมือและน้ำหนักกระทงเป็น "พลังงานเฉื่อยสะสม (Momentum Reserve)"
+            // ผลักแรงจะได้พลังงานสะสมมาก ทำให้กระทงค่อยๆ ลอยไปได้ไกลขึ้นโดยไม่พุ่งพรวดเกินจริง
+            const effectivePower = Math.min(125, powerPct);
+            const angleRad = (angleDeg * Math.PI) / 180;
+            const forwardEfficiency = Math.max(0.55, Math.cos(angleRad * 0.65));
+
+            // คำนวณโมเมนตัมสะสมตามแรงเหวี่ยงและมวลกระทง
+            let initialMomentum = effectivePower * forwardEfficiency * (0.95 + spec.mass * 0.08);
+            krathong.maxMomentumReserve = Math.max(60, initialMomentum);
+            krathong.momentumReserve = initialMomentum;
+
+            // ความเร็วต้นบนผิวน้ำให้ค่อยๆ ไหลออกจากท่าอย่างนุ่มนวล (ประมาณ 1.4 - 2.6 px/frame)
+            const gentleLaunchVx = spec.cruiseMaxVx * Math.min(1.12, Math.max(0.42, effectivePower / 90)) * forwardEfficiency;
+            krathong.vx = gentleLaunchVx;
+            krathong.laneVy = Math.sin(angleRad) * 1.6;
+            krathong.maxLaunchSpeed = (krathong.vx * 60) / PIXELS_PER_METER;
+
+            // สร้างละอองน้ำหน้าท่า
+            spawnSplashParticles(krathong.x + 20, krathong.y + 10, 18, '#38bdf8');
+
+            // ตรวจสอบกรณีผลักแรงเกินพิกัด (> 112%) หรือกดมุมทิ่มน้ำรุนแรง -> กระทงคว่ำหน้าท่า!
+            const stabilityThreshold = 112 * spec.stability;
+            const badAnglePenalty = Math.abs(angleDeg) > 28 ? 22 : 0;
+
+            if (powerPct + badAnglePenalty > stabilityThreshold && Math.random() < 0.82) {
+                // ผลักแรงเกินจนกระทงตีลังกาคว่ำหน้าท่า!
+                krathong.vx *= 0.35;
+                krathong.momentumReserve = 0;
+                krathong.angularVel = angleDeg >= 0 ? 0.14 : -0.14;
+                addFloatingText(krathong.x + 40, krathong.y - 40, 'เหวี่ยงแรงเกิน! กระทงเสียหลัก!', '#f43f5e');
+                setTimeout(() => {
+                    if (gameState === 'SAILING') {
+                        triggerGameOver(
+                            '🙃💦',
+                            'กระทงคว่ำตั้งแต่หน้าท่า!',
+                            `คุณออกแรงเหวี่ยงมือถึง ${Math.round(powerPct)}% จน${spec.name}ตีลังกาหัวทิ่มน้ำ เทียนดับสนิทตั้งแต่วินาทีแรก!`
+                        );
+                    }
+                }, 1150);
+            } else if (powerPct >= 80 && powerPct <= 105 && Math.abs(angleDeg) <= 15) {
+                addFloatingText(krathong.x + 50, krathong.y - 45, '✨ จังหวะผลักสมบูรณ์แบบ! แรงเฉื่อยเต็มเปี่ยม!', '#fbbf24');
+                krathong.momentumReserve *= 1.22;
+                krathong.maxMomentumReserve = krathong.momentumReserve;
+                krathong.vx = spec.cruiseMaxVx * 1.08;
+                krathong.maxLaunchSpeed = (krathong.vx * 60) / PIXELS_PER_METER;
+            } else {
+                addFloatingText(krathong.x + 40, krathong.y - 35, `ส่งแรงเหวี่ยง ${Math.round(powerPct)}%! ค่อยๆ ลอยไป...`, '#38bdf8');
+            }
+
+            updateHUD();
+        }
+
+        // ฟังก์ชันวักน้ำช่วยเติมแรงเฉื่อยประคองกระทงให้ลอยต่อไปอย่างนุ่มนวล
+        function triggerWaterSplashBoost() {
+            if (gameState !== 'SAILING' || krathong.grabbedByKid) return;
+            if (krathong.splashesLeft <= 0) {
+                addFloatingText(krathong.x, krathong.y - 35, 'หมดแรงวักน้ำแล้ว!', '#94a3b8');
+                return;
+            }
+
+            const spec = KRATHONG_TYPES[selectedTypeKey];
+            krathong.splashesLeft--;
+
+            // เติมแรงเฉื่อยสะสมและค่อยๆ ประคองความเร็วขึ้นอย่างนุ่มนวล (ไม่พุ่งกระชาก)
+            const momentumAdd = 28 / Math.pow(spec.mass, 0.25);
+            krathong.momentumReserve = Math.min(krathong.maxMomentumReserve, krathong.momentumReserve + momentumAdd);
+            krathong.vx = Math.min(spec.cruiseMaxVx * 1.18, krathong.vx + (0.65 / Math.pow(spec.mass, 0.3)));
+            krathong.angularVel -= 0.018;
+
+            sound.playSplash(1.0);
+            spawnSplashParticles(krathong.x - 15, krathong.y + 10, 14, '#7dd3fc');
+            addFloatingText(krathong.x, krathong.y - 40, '🌊 วักน้ำส่งแรงประคอง!', '#38bdf8');
+            updateHUD();
+        }
+
+        function triggerLaneDodge(dir) {
+            if (gameState !== 'SAILING' || krathong.grabbedByKid) return;
+            const spec = KRATHONG_TYPES[selectedTypeKey];
+            const agility = 2.85 / Math.pow(spec.mass, 0.32);
+            krathong.laneVy += dir * agility;
+            // วักเบี่ยงช่วยประคองแรงส่งข้างหน้าเล็กน้อย
+            krathong.momentumReserve = Math.min(krathong.maxMomentumReserve, krathong.momentumReserve + 2.5);
+            sound.playSplash(0.55);
+            spawnSplashParticles(krathong.x, krathong.y + 8, 7, '#bae6fd');
+        }
+
+        // ปุ่มคีย์บอร์ดและคลิกปุ่มวักน้ำ (ไม่มีคีย์ลัดเปลี่ยนมุมมอง POV ด้วยตัวเอง)
+        document.getElementById('btnSplashForward').addEventListener('click', triggerWaterSplashBoost);
+        document.getElementById('btnDodgeUp').addEventListener('click', () => triggerLaneDodge(-1));
+        document.getElementById('btnDodgeDown').addEventListener('click', () => triggerLaneDodge(1));
+
+        window.addEventListener('keydown', (e) => {
+            if (gameState !== 'SAILING') return;
+            if (e.code === 'Space') {
+                e.preventDefault();
+                triggerWaterSplashBoost();
+            } else if (e.code === 'ArrowUp' || e.code === 'KeyW' || e.code === 'ArrowLeft' || e.code === 'KeyA') {
+                e.preventDefault();
+                triggerLaneDodge(-1);
+            } else if (e.code === 'ArrowDown' || e.code === 'KeyS' || e.code === 'ArrowRight' || e.code === 'KeyD') {
+                e.preventDefault();
+                triggerLaneDodge(1);
+            }
+        });
+
+        // ฟังก์ชันสลับโหมดมุมมองกล้องอัตโนมัติ (SIDE <-> POV) พร้อมแบนเนอร์และเอฟเฟกต์ Transition
+        function setCameraViewMode(targetMode, titleText, subText) {
+            if (viewMode === targetMode) return;
+            viewMode = targetMode;
+            povTransitionFlash = 1.0;
+            sound.playCameraSwitch(targetMode === 'POV');
+            updateSteeringButtonLabels();
+
+            const banner = document.getElementById('cameraTransitionBanner');
+            document.getElementById('camBannerTitle').textContent = titleText;
+            document.getElementById('camBannerSub').textContent = subText;
+            banner.classList.remove('hidden');
+
+            if (bannerTimeoutId) clearTimeout(bannerTimeoutId);
+            bannerTimeoutId = setTimeout(() => {
+                banner.classList.add('hidden');
+            }, 3800);
+        }
+
+        function updateSteeringButtonLabels() {
+            const upIcon = document.getElementById('dodgeUpIcon');
+            const upText = document.getElementById('dodgeUpText');
+            const downIcon = document.getElementById('dodgeDownIcon');
+            const downText = document.getElementById('dodgeDownText');
+
+            if (viewMode === 'POV') {
+                upIcon.className = 'fa-solid fa-arrow-left';
+                upText.textContent = 'เบี่ยงซ้าย (A/←)';
+                downIcon.className = 'fa-solid fa-arrow-right';
+                downText.textContent = 'เบี่ยงขวา (D/→)';
+            } else {
+                upIcon.className = 'fa-solid fa-arrow-up';
+                upText.textContent = 'วักเบี่ยงขึ้น (W/↑)';
+                downIcon.className = 'fa-solid fa-arrow-down';
+                downText.textContent = 'วักเบี่ยงลง (S/↓)';
+            }
+        }
+
+        document.getElementById('btnSplashForward').addEventListener('click', triggerWaterSplashBoost);
+        document.getElementById('btnDodgeUp').addEventListener('click', () => triggerLaneDodge(-1));
+        document.getElementById('btnDodgeDown').addEventListener('click', () => triggerLaneDodge(1));
+
+        window.addEventListener('keydown', (e) => {
+            if (gameState !== 'SAILING') return;
+            if (e.code === 'Space') {
+                e.preventDefault();
+                triggerWaterSplashBoost();
+            } else if (e.code === 'ArrowUp' || e.code === 'KeyW' || e.code === 'ArrowLeft' || e.code === 'KeyA') {
+                e.preventDefault();
+                triggerLaneDodge(-1);
+            } else if (e.code === 'ArrowDown' || e.code === 'KeyS' || e.code === 'ArrowRight' || e.code === 'KeyD') {
+                e.preventDefault();
+                triggerLaneDodge(1);
+            }
+        });
+
+        /**
+         * ============================================================================
+         * 7. OBSTACLE GENERATOR (เด็กดำน้ำ, ปลาสวาย, น้ำวน, คลื่นเรือด่วน)
+         * ============================================================================
+         */
+        function spawnObstaclesAhead() {
+            const spec = KRATHONG_TYPES[selectedTypeKey];
+            const distMeters = Math.max(0, (krathong.x - 250) / PIXELS_PER_METER);
+
+            while (nextObstacleSpawnX < cameraX + W + 600) {
+                const rand = Math.random();
+                const laneY = (Math.random() * 145) - 55; // ตำแหน่งความลึกในแม่น้ำ
+
+                // 1) แก๊งเด็กดำน้ำดักเก็บเหรียญในกระทง (ตัวป่วนหลัก!)
+                if (rand < 0.48) {
+                    const kidName = SNATCHER_NAMES[Math.floor(Math.random() * SNATCHER_NAMES.length)];
+                    obstacles.push({
+                        type: 'snatcher_kid',
+                        name: kidName,
+                        x: nextObstacleSpawnX,
+                        laneOffsetY: laneY,
+                        state: 'lurking', // lurking -> lunging -> grabbed / missed
+                        detectRadius: 155 * spec.coinAttraction,
+                        grabRadius: 50,
+                        bobPhase: Math.random() * Math.PI * 2,
+                        armReach: 0,
+                        passed: false
+                    });
+                }
+                // 2) ปลาชะโด / ปลาสวายยักษ์ฮุบกระทง (ชอบกระทงขนมปังเป็นพิเศษ)
+                else if (rand < 0.72) {
+                    obstacles.push({
+                        type: 'giant_fish',
+                        x: nextObstacleSpawnX,
+                        laneOffsetY: laneY,
+                        biteRadius: 46 * (selectedTypeKey === 'bread' ? 1.35 : 0.9),
+                        jumpPhase: 0,
+                        isJumping: false,
+                        passed: false
+                    });
+                }
+                // 3) น้ำวนใต้น้ำดึงดูดและลดความเร็ว
+                else if (rand < 0.88) {
+                    obstacles.push({
+                        type: 'whirlpool',
+                        x: nextObstacleSpawnX,
+                        laneOffsetY: laneY,
+                        radius: 68,
+                        rotation: 0
+                    });
+                }
+                // 4) คลื่นเรือด่วนเจ้าพระยาซัดกระแทก
+                else {
+                    obstacles.push({
+                        type: 'boat_wave',
+                        x: nextObstacleSpawnX + 180,
+                        laneOffsetY: 0,
+                        vx: -1.65,
+                        width: 55,
+                        hitDone: false
+                    });
+                }
+
+                // ระยะห่างอุปสรรคพอเหมาะกับการค่อยๆ ลอยลุ้นระทึก
+                const spacing = Math.max(210, 340 - Math.min(120, distMeters * 1.1));
+                nextObstacleSpawnX += spacing + Math.random() * 115;
+            }
+
+            // ลบอุปสรรคที่หลุดฉากด้านซ้ายไปแล้ว
+            obstacles = obstacles.filter(ob => ob.x > cameraX - 300);
+        }
+
+        /**
+         * ============================================================================
+         * 8. UPDATE LOOP (GENTLE RIVER GLIDE PHYSICS & COLLISIONS)
+         * ============================================================================
+         */
+        function updateGame() {
+            // อัปเดตโคมลอยและพลุในฉากหลัง
+            lanterns.forEach(lt => {
+                lt.y -= lt.speedY;
+                lt.x += Math.sin(performance.now() * 0.001 + lt.swayOffset) * 0.25 + lt.speedX;
+                if (lt.y < -40) {
+                    lt.y = riverSurfaceY - 10;
+                    lt.x = Math.random() * W;
+                }
+            });
+
+            if (Math.random() < 0.018) {
+                spawnFirework();
+            }
+            updateFireworksAndParticles();
+
+            if (povTransitionFlash > 0) {
+                povTransitionFlash = Math.max(0, povTransitionFlash - 0.032);
+            }
+
+            if (gameState !== 'SAILING') return;
+
+            const spec = KRATHONG_TYPES[selectedTypeKey];
+            const baseWaterY = riverSurfaceY + 45;
+
+            // ถ้าโดนเด็กคว้ากระทงไปแล้ว ให้ดึงจมลงน้ำ
+            if (krathong.grabbedByKid) {
+                krathong.vx *= 0.7;
+                krathong.x += (krathong.grabbedByKid.x - krathong.x) * 0.16;
+                krathong.laneOffsetY += (krathong.grabbedByKid.laneOffsetY - krathong.laneOffsetY) * 0.16;
+                krathong.submerged = Math.min(45, krathong.submerged + 1.5);
+                krathong.y = baseWaterY + krathong.laneOffsetY + krathong.submerged;
+                return;
+            }
+
+            // 1. ระบบฟิสิกส์ "ค่อยๆ ลอยตามแรงเหวี่ยงสะสม (Momentum-Driven Gentle Glide)"
+            if (krathong.momentumReserve > 0) {
+                // ค่อยๆ ใช้พลังงานเฉื่อยจากการเหวี่ยงเพื่อรักษาความเร็วลอยเอื่อยๆ อย่างต่อเนื่อง
+                krathong.momentumReserve = Math.max(0, krathong.momentumReserve - spec.momentumDecay);
+                const momentumRatio = Math.min(1, krathong.momentumReserve / 55);
+                const targetCruiseVx = (0.55 + momentumRatio * (spec.cruiseMaxVx - 0.55));
+                krathong.vx += (targetCruiseVx - krathong.vx) * 0.045;
+            } else {
+                // เมื่อแรงเฉื่อยจากการเหวี่ยงหมดลง กระทงจะค่อยๆ ชะลอตัวลงตามแรงต้านน้ำ
+                krathong.vx *= spec.waterDrag;
+                if (krathong.vx < 0.45) {
+                    krathong.vx = Math.max(0, krathong.vx - 0.0022);
+                }
+            }
+
+            // จำกัดความเร็วสูงสุดไม่ให้กระทงพุ่งเร็วเกินไปจนเสียอารมณ์ลอยกระทง
+            krathong.vx = Math.min(spec.cruiseMaxVx * 1.22, krathong.vx);
+
+            // การเคลื่อนที่แนวราบและแนวลึก (ค่อยๆ เบี่ยงขึ้น/ลงในแม่น้ำอย่างนุ่มนวล)
+            krathong.x += krathong.vx;
+            krathong.laneOffsetY += krathong.laneVy;
+            krathong.laneVy *= 0.90;
+            krathong.laneOffsetY = Math.max(-42, Math.min(125, krathong.laneOffsetY));
+
+            // การกระเพื่อมตามคลื่นน้ำและการทรงตัว
+            const waveBob = Math.sin(performance.now() * 0.0045 + krathong.x * 0.025) * 3.5;
+            krathong.y = baseWaterY + krathong.laneOffsetY + waveBob + krathong.submerged;
+
+            krathong.angle += krathong.angularVel;
+            // แรงพยุงตัวของกระทงให้กลับมาตั้งตรง (ยกเว้นคว่ำไปแล้ว)
+            if (Math.abs(krathong.angle) < 1.1) {
+                krathong.angularVel += (-krathong.angle * 0.04 * spec.stability);
+                krathong.angularVel *= 0.88;
+            } else {
+                // เอียงเกินจุดวิกฤต -> คว่ำ!
+                krathong.flameAlive = false;
+                krathong.submerged += 1.2;
+            }
+
+            // 2. อัปเดตการละลายของกระทงน้ำแข็ง / ขนมปังอมน้ำ
+            if (spec.meltRate > 0) {
+                krathong.integrity = Math.max(0, krathong.integrity - spec.meltRate * 60);
+                if (krathong.integrity <= 0) {
+                    sound.playFailTrombone();
+                    triggerGameOver(
+                        '🧊💧',
+                        selectedTypeKey === 'ice' ? 'กระทงน้ำแข็งละลายหมดก้อน!' : 'กระทงขนมปังเปื่อยยุ่ยจมน้ำ!',
+                        selectedTypeKey === 'ice'
+                            ? 'ลอยเพลินจนน้ำแข็งละลายกลายเป็นน้ำเจ้าพระยา เหรียญและธูปเทียนจมลงก้นแม่น้ำเรียบร้อย!'
+                            : 'ขนมปังดูดซับน้ำจนหนักอึ้งและยุ่ยสลายกลางลำน้ำ!'
+                    );
+                    return;
+                }
+            }
+
+            // 3. เลื่อนกล้องตามกระทงอย่างนุ่มนวล
+            const targetCamX = Math.max(0, krathong.x - W * 0.28);
+            cameraX += (targetCamX - cameraX) * 0.12;
+
+            // 3.5 ระบบสลับมุมมองอัตโนมัติเท่านั้น:
+            // - เมื่อถึงกลางทาง (95m - 180m) ตัดเข้าสู่มุมมอง 3D First-Person POV อัตโนมัติ
+            // - เมื่อใกล้ถึงปลายทาง (> 180m) สลับกลับเป็นมุมมองด้านข้าง (SIDE) ตามเดิมอัตโนมัติ
+            const currentDistM = getCurrentDistanceMeters();
+            if (povPhaseState === 'BEFORE_MID' && currentDistM >= POV_START_METERS && currentDistM < POV_END_METERS) {
+                povPhaseState = 'IN_MID_POV';
+                setCameraViewMode(
+                    'POV',
+                    '🎥 ถึงกลางลำน้ำ! เข้าสู่มุมมอง POV อัตโนมัติ!',
+                    'ช่วงระยะ 95-180 ม. ลุ้นระทึกจากมุมมองหัวกระทง กดเบี่ยงซ้าย/ขวาเพื่อหลบเด็กดำน้ำข้างหน้า!'
+                );
+            } else if (povPhaseState === 'IN_MID_POV' && currentDistM >= POV_END_METERS) {
+                povPhaseState = 'AFTER_MID';
+                setCameraViewMode(
+                    'SIDE',
+                    '🌕 โค้งสุดท้ายใกล้ถึงปลายทาง! กลับสู่มุมมองด้านข้าง!',
+                    'พ้นช่วงกลางน้ำ 180 ม. แล้ว! ประคองแรงเฉื่อยอีกนิดเพื่อส่งกระทงให้ถึงฝัน 240 เมตร!'
+                );
+            }
+
+            // ฉลองเมื่อทะลุเป้าหมายปลายทางฝัน 240 เมตร (และให้ลอยทำสถิติต่อได้เรื่อยๆ)
+            if (!dreamMilestoneReached && currentDistM >= DREAM_GOAL_METERS) {
+                dreamMilestoneReached = true;
+                krathong.splashesLeft += 2; // โบนัสวักน้ำเพิ่ม 2 ครั้ง
+                krathong.momentumReserve = Math.min(krathong.maxMomentumReserve, krathong.momentumReserve + 30);
+                for (let i = 0; i < 5; i++) setTimeout(() => spawnFirework(), i * 200);
+                addFloatingText(krathong.x, krathong.y - 50, '🎉 ทะลุ 240 ม. กระทงถึงฝั่งฝัน! (+วักน้ำฟรี 2 ครั้ง ลุยสถิติต่อ!)', '#4ade80');
+            }
+
+            // 4. สร้างและเช็กการชนอุปสรรค (เด็กเก็บกระทง, ปลา, น้ำวน, คลื่น)
+            spawnObstaclesAhead();
+            checkObstacleInteractions();
+
+            // 5. เช็กเงื่อนไขแรงเฉื่อยหมดและกระทงลอยช้าจนหยุดนิ่ง
+            if (krathong.vx < 0.14 && krathong.momentumReserve <= 0 && krathong.x > 290) {
+                sound.playCoinSnatch();
+                triggerGameOver(
+                    '🏊‍♂️🪙',
+                    'หมดแรงส่ง! กระทงลอยนิ่งเสร็จเด็กเจ้าถิ่น!',
+                    'แรงเฉื่อยจากการเหวี่ยงหมดลงจนกระทงลอยนิ่งกลางน้ำ เด็กที่ซุ่มอยู่ริมตลิ่งจึงว่ายมาเก็บเหรียญไปอย่างง่ายดาย!'
+                );
+                return;
+            }
+
+            updateHUD();
+        }
+
+        function checkObstacleInteractions() {
+            const spec = KRATHONG_TYPES[selectedTypeKey];
+            let snatcherNearWarning = false;
+
+            for (let ob of obstacles) {
+                const dx = ob.x - krathong.x;
+                const dy = ob.laneOffsetY - krathong.laneOffsetY;
+                const dist = Math.hypot(dx, dy);
+
+                // --- A. แก๊งเด็กดำน้ำดักเก็บเหรียญ ---
+                if (ob.type === 'snatcher_kid') {
+                    ob.bobPhase += 0.055;
+
+                    if (dx > -35 && dx < 310) {
+                        snatcherNearWarning = true;
+                    }
+
+                    // ถ้ากระทงค่อยๆ ลอยเข้าใกล้รัศมีสายตาเด็ก เด็กจะค่อยๆ ว่ายบีบเข้ามาหาให้ผู้เล่นลุ้นระทึก!
+                    if (dist < ob.detectRadius && dx > -30) {
+                        ob.state = 'lunging';
+                        // ปรับความเร็วเด็กว่ายน้ำให้สมดุลกับความเร็วกระทงที่ค่อยๆ ลอย เพื่อให้ผู้เล่นกดวักเบี่ยงหลบได้ทัน
+                        const chaseSpeed = krathong.vx < 1.15 ? 0.82 : 0.46;
+                        ob.laneOffsetY += Math.sign(krathong.laneOffsetY - ob.laneOffsetY) * chaseSpeed;
+                        ob.armReach = Math.min(20, ob.armReach + 0.65);
+                    }
+
+                    // เช็กว่าโดนมือเด็กตะครุบหรือไม่
+                    const effectiveGrabRadius = ob.grabRadius + (krathong.vx < 0.85 ? 10 : -4);
+                    if (dist < effectiveGrabRadius && !krathong.grabbedByKid) {
+                        ob.state = 'grabbed';
+                        krathong.grabbedByKid = ob;
+                        krathong.flameAlive = false;
+                        sound.playSplash(1.1);
+                        sound.playCoinSnatch();
+                        spawnSplashParticles(ob.x, riverSurfaceY + 45 + ob.laneOffsetY, 24, '#fbbf24');
+                        addFloatingText(ob.x, riverSurfaceY + ob.laneOffsetY - 10, 'เสร็จโก๋! เหรียญ 10 บาท!', '#facc15');
+
+                        setTimeout(() => {
+                            triggerGameOver(
+                                '👦🏽🪙',
+                                `กระทงไปไม่ถึงฝัน! โดน "${ob.name}" ดักเก็บ!`,
+                                `ในขณะที่กระทงกำลังค่อยๆ ลอยผ่านคุ้งน้ำ ${ob.name} ก็โผล่พรวดขึ้นมาจากใต้น้ำ คว้า${spec.name}ไปแงะเหรียญ 10 บาทต่อหน้าต่อตา!`
+                            );
+                        }, 900);
+                        return;
+                    }
+
+                    // ถ้ารอดพ้นหน้าเด็กไปได้
+                    if (!ob.passed && krathong.x > ob.x + 52) {
+                        ob.passed = true;
+                        krathong.dodgedKidsCount++;
+                        addFloatingText(ob.x, riverSurfaceY + ob.laneOffsetY, 'ลอยพ้นมือเด็กหวุดหวิด! +1', '#4ade80');
+                    }
+                }
+
+                // --- B. ปลาสวาย / ปลาชะโดยักษ์ฮุบกระทง ---
+                else if (ob.type === 'giant_fish') {
+                    if (Math.abs(dx) < 120) {
+                        ob.isJumping = true;
+                        ob.jumpPhase = Math.min(Math.PI, ob.jumpPhase + 0.055);
+                    }
+                    if (dist < ob.biteRadius) {
+                        if (selectedTypeKey === 'bread' || Math.random() < 0.62) {
+                            krathong.grabbedByKid = ob;
+                            sound.playSplash(1.2);
+                            sound.playFailTrombone();
+                            spawnSplashParticles(krathong.x, krathong.y, 25, '#f97316');
+                            addFloatingText(krathong.x, krathong.y - 30, '🐟 ปลาสวายยักษ์ฮุบทั้งก้อน!', '#fb923c');
+
+                            setTimeout(() => {
+                                triggerGameOver(
+                                    '🐟🥖',
+                                    'โดนปลาสวายหน้าวัดฮุบกระทง!',
+                                    selectedTypeKey === 'bread'
+                                        ? 'กลิ่นหอมของกระทงขนมปังจัมโบ้เย้ายวนเกินห้ามใจ ปลาสวายยักษ์หน้าวัดจึงกระโดดฮุบหายวับไปในคำเดียว!'
+                                        : 'ฝูงปลาหน้าวัดกระโดดฮุบกระทงของคุณจนพลิกคว่ำจมหายไปในแม่น้ำ!'
+                                );
+                            }, 800);
+                            return;
+                        } else {
+                            // กระทงใบตอง/น้ำแข็งโดนหางปลาสะบัดทำให้สูญเสียแรงเฉื่อย
+                            krathong.momentumReserve = Math.max(0, krathong.momentumReserve - 18);
+                            krathong.vx *= 0.72;
+                            krathong.laneVy += (Math.random() > 0.5 ? 2.5 : -2.5);
+                            ob.biteRadius = 0;
+                            addFloatingText(krathong.x, krathong.y - 30, 'โดนหางปลาสะบัด แรงส่งลดลง!', '#fbbf24');
+                        }
+                    }
+                }
+
+                // --- C. น้ำวนใต้น้ำ ---
+                else if (ob.type === 'whirlpool') {
+                    ob.rotation += 0.09;
+                    if (dist < ob.radius) {
+                        // ดูดกระทงเข้าจุดศูนย์กลางและดูดกลืนแรงเฉื่อยสะสม
+                        krathong.momentumReserve = Math.max(0, krathong.momentumReserve - 0.45);
+                        krathong.vx *= 0.982;
+                        krathong.laneOffsetY += (ob.laneOffsetY - krathong.laneOffsetY) * 0.05;
+                        krathong.angularVel += 0.012;
+                        if (Math.random() < 0.12) {
+                            addFloatingText(krathong.x, krathong.y - 30, '🌀 ติดน้ำวน! รีบกดเบี่ยงหรือวักน้ำหนี!', '#38bdf8');
+                        }
+                    }
+                }
+
+                // --- D. คลื่นเรือด่วนเจ้าพระยา ---
+                else if (ob.type === 'boat_wave') {
+                    ob.x += ob.vx;
+                    if (!ob.hitDone && Math.abs(dx) < 38) {
+                        ob.hitDone = true;
+                        sound.playSplash(0.9);
+                        spawnSplashParticles(krathong.x, krathong.y, 18, '#e0f2fe');
+
+                        // กระทงเบาสะเทือนหนักกว่ากระทงหนัก
+                        const impact = 1.35 / spec.stability;
+                        krathong.momentumReserve = Math.max(0, krathong.momentumReserve - 14 * impact);
+                        krathong.vx *= Math.max(0.62, 0.90 - impact * 0.12);
+                        krathong.angularVel += (Math.random() > 0.5 ? 1 : -1) * 0.08 * impact;
+
+                        if (selectedTypeKey === 'ice' && krathong.momentumReserve < 15 && Math.random() < 0.45) {
+                            triggerGameOver(
+                                '🚤🌊',
+                                'คลื่นเรือด่วนซัดกระทงน้ำแข็งคว่ำ!',
+                                'คลื่นยักษ์จากเรือด่วนเจ้าพระยาซัดเข้าเต็มแรง กระทงน้ำแข็งน้ำหนักเบาจึงลอยละลิ่วพลิกคว่ำกลางลำน้ำ!'
+                            );
+                            return;
+                        } else {
+                            addFloatingText(krathong.x, krathong.y - 35, '🌊 คลื่นเรือด่วนซัดกระแทก!', '#93c5fd');
+                        }
+                    }
+                }
+            }
+
+            const warningBanner = document.getElementById('warningBanner');
+            if (snatcherNearWarning && gameState === 'SAILING') {
+                warningBanner.classList.remove('hidden');
+            } else {
+                warningBanner.classList.add('hidden');
+            }
+        }
+
+        /**
+         * ============================================================================
+         * 9. RENDERING ENGINE (CANVAS 2D - SIDE VIEW & 3D FIRST-PERSON POV)
+         * ============================================================================
+         */
+        function drawScene() {
+            ctx.clearRect(0, 0, W, H);
+
+            if (viewMode === 'POV' && (gameState === 'SAILING' || gameState === 'ENDED')) {
+                drawPOVScene();
+            } else {
+                drawSideViewScene();
+            }
+
+            // เอฟเฟกต์แฟลชซูมตอนตัดสลับมุมกล้อง
+            if (povTransitionFlash > 0) {
+                ctx.save();
+                ctx.fillStyle = `rgba(254, 243, 199, ${povTransitionFlash * 0.55})`;
+                ctx.fillRect(0, 0, W, H);
+                ctx.restore();
+            }
+        }
+
+        function drawSideViewScene() {
+            // 1. ท้องฟ้ายามค่ำคืนวันเพ็ญ
+            const skyGrad = ctx.createLinearGradient(0, 0, 0, riverSurfaceY);
+            skyGrad.addColorStop(0, '#040814');
+            skyGrad.addColorStop(0.55, '#0f172a');
+            skyGrad.addColorStop(1, '#1e1b4b');
+            ctx.fillStyle = skyGrad;
+            ctx.fillRect(0, 0, W, riverSurfaceY);
+
+            // ดวงดาวระยิบระยับ
+            stars.forEach(st => {
+                st.alpha += Math.sin(performance.now() * st.twinkleSpeed) * 0.015;
+                const screenX = ((st.x - cameraX * 0.08) % W + W) % W;
+                ctx.fillStyle = `rgba(254, 243, 199, ${Math.max(0.15, Math.min(0.95, st.alpha))})`;
+                ctx.beginPath();
+                ctx.arc(screenX, st.y, st.r, 0, Math.PI * 2);
+                ctx.fill();
+            });
+
+            // พระจันทร์เต็มดวงคืนวันเพ็ญ
+            const moonX = W * 0.78 - (cameraX * 0.02 % 120);
+            const moonY = riverSurfaceY * 0.26;
+            const moonGlow = ctx.createRadialGradient(moonX, moonY, 15, moonX, moonY, 130);
+            moonGlow.addColorStop(0, 'rgba(253, 224, 71, 0.95)');
+            moonGlow.addColorStop(0.35, 'rgba(251, 191, 36, 0.35)');
+            moonGlow.addColorStop(1, 'rgba(251, 191, 36, 0)');
+            ctx.fillStyle = moonGlow;
+            ctx.beginPath();
+            ctx.arc(moonX, moonY, 130, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.fillStyle = '#fef08a';
+            ctx.beginPath();
+            ctx.arc(moonX, moonY, 38, 0, Math.PI * 2);
+            ctx.fill();
+
+            // โคมลอยบนท้องฟ้า
+            lanterns.forEach(lt => {
+                ctx.save();
+                ctx.translate(lt.x, lt.y);
+                const lGlow = ctx.createRadialGradient(0, 0, 2, 0, 0, lt.size * 1.4);
+                lGlow.addColorStop(0, 'rgba(251, 146, 60, 0.9)');
+                lGlow.addColorStop(1, 'rgba(251, 146, 60, 0)');
+                ctx.fillStyle = lGlow;
+                ctx.beginPath();
+                ctx.arc(0, 0, lt.size * 1.4, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.fillStyle = '#fb923c';
+                ctx.beginPath();
+                ctx.roundRect(-lt.size * 0.35, -lt.size * 0.5, lt.size * 0.7, lt.size, 4);
+                ctx.fill();
+                ctx.fillStyle = '#fef08a';
+                ctx.beginPath();
+                ctx.arc(0, lt.size * 0.35, lt.size * 0.2, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            });
+
+            // พลุไฟฉลองเทศกาล
+            drawFireworks();
+
+            // 2. เงาวัดไทยและเจดีย์ริมฝั่งน้ำ (Parallax Silhouette)
+            drawTempleSilhouette();
+
+            // 3. พื้นแม่น้ำเจ้าพระยายามค่ำคืน
+            const riverGrad = ctx.createLinearGradient(0, riverSurfaceY, 0, H);
+            riverGrad.addColorStop(0, '#0c274e');
+            riverGrad.addColorStop(0.45, '#08203e');
+            riverGrad.addColorStop(1, '#030d1c');
+            ctx.fillStyle = riverGrad;
+            ctx.fillRect(0, riverSurfaceY, W, H - riverSurfaceY);
+
+            // แสงจันทร์สะท้อนผิวน้ำ
+            ctx.fillStyle = 'rgba(253, 224, 71, 0.12)';
+            for (let i = 0; i < 14; i++) {
+                const ry = riverSurfaceY + 15 + i * 18;
+                const rw = 85 - i * 4 + Math.sin(performance.now() * 0.004 + i) * 18;
+                ctx.fillRect(moonX - rw / 2, ry, rw, 4);
+            }
+
+            // เส้นระลอกคลื่นและหลักกิโลเมตรบอกระยะทางในน้ำ
+            drawRiverWavesAndDistanceMarkers();
+
+            // 4. วาดท่าน้ำไม้ (จุดเริ่มต้น)
+            drawWoodenPier();
+
+            // 5. วาดอุปสรรคในแม่น้ำ (น้ำวน, ปลา, เด็กเก็บกระทง, คลื่นเรือด่วน)
+            drawObstacles();
+
+            // 6. วาดตัวกระทงของผู้เล่น
+            drawKrathong(krathong.x - cameraX, krathong.y, selectedTypeKey, krathong.angle, krathong.flameAlive);
+
+            // 7. วาดมือจำลองและเกจวัดแรงเหวี่ยง (เฉพาะตอนง้างมือ AIMING)
+            if (gameState === 'AIMING') {
+                drawVirtualHandAndPowerMeter();
+            }
+
+            // 8. วาดละอองน้ำและข้อความลอย
+            drawParticlesAndFloatingTexts();
+        }
+
+        /**
+         * ============================================================================
+         * 9.1 3D FIRST-PERSON POV RENDERER (มุมมองจากหัวกระทงลอยไปข้างหน้า)
+         * ============================================================================
+         */
+        function projectPOVPoint(forwardDistPx, lateralLaneOffset) {
+            const horizonY = H * 0.42;
+            const bottomY = H * 0.94;
+            const maxViewDist = 780; // ระยะการมองเห็นข้างหน้า (พิกเซล)
+            const clampedZ = Math.max(10, forwardDistPx);
+
+            // ค่าความลึก p: 0 = ไกลสุดขอบฟ้า, 1 = ประชิดหน้ากระทง
+            const depthNorm = Math.max(0, Math.min(1.25, 1 - (clampedZ / maxViewDist)));
+            const perspectiveCurve = Math.pow(depthNorm, 1.65);
+
+            const screenY = horizonY + perspectiveCurve * (bottomY - horizonY);
+            const scale = 0.14 + perspectiveCurve * 1.45;
+
+            // แปลงระยะเบี่ยงซ้าย-ขวา (laneOffsetY เดิมคือ -42 ถึง +125, ค่ากลาง ~40)
+            const relLateral = lateralLaneOffset - krathong.laneOffsetY;
+            const riverHalfWidthAtDepth = (W * 0.07) + perspectiveCurve * (W * 0.52);
+            const screenX = (W * 0.5) + (relLateral / 95) * riverHalfWidthAtDepth;
+
+            return { x: screenX, y: screenY, scale: scale, depthNorm: depthNorm, visible: forwardDistPx > -35 && forwardDistPx < maxViewDist };
+        }
+
+        function drawPOVScene() {
+            const horizonY = H * 0.42;
+            const time = performance.now() * 0.002;
+
+            // 1. ท้องฟ้ายามค่ำคืนและพระจันทร์ดวงโตตรงหน้าเส้นขอบฟ้า
+            const skyGrad = ctx.createLinearGradient(0, 0, 0, horizonY);
+            skyGrad.addColorStop(0, '#040814');
+            skyGrad.addColorStop(0.6, '#0f172a');
+            skyGrad.addColorStop(1, '#1e1b4b');
+            ctx.fillStyle = skyGrad;
+            ctx.fillRect(0, 0, W, horizonY);
+
+            stars.forEach(st => {
+                const sx = (st.x % W + W) % W;
+                const sy = (st.y % horizonY);
+                ctx.fillStyle = `rgba(254, 243, 199, ${Math.max(0.2, Math.min(0.9, st.alpha))})`;
+                ctx.beginPath();
+                ctx.arc(sx, sy, st.r, 0, Math.PI * 2);
+                ctx.fill();
+            });
+
+            // พระจันทร์เต็มดวงตรงกลางลำน้ำเบื้องหน้า
+            const moonX = W * 0.5 - (krathong.laneOffsetY - 40) * 0.6;
+            const moonY = horizonY * 0.48;
+            const moonGlow = ctx.createRadialGradient(moonX, moonY, 18, moonX, moonY, 155);
+            moonGlow.addColorStop(0, 'rgba(253, 224, 71, 0.95)');
+            moonGlow.addColorStop(0.4, 'rgba(251, 191, 36, 0.35)');
+            moonGlow.addColorStop(1, 'rgba(251, 191, 36, 0)');
+            ctx.fillStyle = moonGlow;
+            ctx.beginPath();
+            ctx.arc(moonX, moonY, 155, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.fillStyle = '#fef08a';
+            ctx.beginPath();
+            ctx.arc(moonX, moonY, 44, 0, Math.PI * 2);
+            ctx.fill();
+
+            // โคมลอยและพลุไฟ
+            lanterns.forEach(lt => {
+                ctx.save();
+                ctx.translate(lt.x % W, lt.y % horizonY);
+                ctx.fillStyle = '#fb923c';
+                ctx.beginPath();
+                ctx.roundRect(-4, -6, 8, 12, 3);
+                ctx.fill();
+                ctx.restore();
+            });
+            drawFireworks();
+
+            // 2. ผืนน้ำ 3D Perspective ทอดยาวจากเส้นขอบฟ้ามาหาตัวกระทง
+            const waterGrad = ctx.createLinearGradient(0, horizonY, 0, H);
+            waterGrad.addColorStop(0, '#172554');
+            waterGrad.addColorStop(0.4, '#0c274e');
+            waterGrad.addColorStop(1, '#030d1c');
+            ctx.fillStyle = waterGrad;
+            ctx.fillRect(0, horizonY, W, H - horizonY);
+
+            // ตลิ่งวัดไทยสองฝั่งแม่น้ำบีบเข้าหาจุดนำสายตา (Vanishing Point)
+            const vpX = W * 0.5 - (krathong.laneOffsetY - 40) * 1.1;
+            ctx.fillStyle = '#070b19';
+            // ฝั่งซ้าย
+            ctx.beginPath();
+            ctx.moveTo(0, horizonY - 12);
+            ctx.lineTo(vpX - W * 0.08, horizonY);
+            ctx.lineTo(0, H * 0.72);
+            ctx.closePath();
+            ctx.fill();
+            // ฝั่งขวา
+            ctx.beginPath();
+            ctx.moveTo(W, horizonY - 12);
+            ctx.lineTo(vpX + W * 0.08, horizonY);
+            ctx.lineTo(W, H * 0.72);
+            ctx.closePath();
+            ctx.fill();
+
+            // เส้น Perspective ของร่องน้ำและคลื่นที่วิ่งเข้าหาตัวกระทง
+            ctx.strokeStyle = 'rgba(56, 189, 248, 0.16)';
+            ctx.lineWidth = 1.5;
+            for (let lane = -3; lane <= 3; lane++) {
+                ctx.beginPath();
+                ctx.moveTo(vpX + lane * 14, horizonY);
+                ctx.lineTo(W * 0.5 + lane * (W * 0.19), H);
+                ctx.stroke();
+            }
+
+            // เส้นคลื่นแนวนอนที่เคลื่อนที่เข้ามาตามความเร็วกระทง
+            const waveOffset = (krathong.x * 0.04) % 1;
+            for (let i = 0; i < 10; i++) {
+                const p = ((i + waveOffset) / 10);
+                const curve = Math.pow(p, 1.8);
+                const wy = horizonY + curve * (H - horizonY);
+                const halfW = (W * 0.08) + curve * (W * 0.52);
+
+                ctx.strokeStyle = `rgba(125, 211, 252, ${0.08 + curve * 0.22})`;
+                ctx.lineWidth = 1 + curve * 2.5;
+                ctx.beginPath();
+                ctx.moveTo(vpX - halfW, wy);
+                ctx.lineTo(vpX + halfW, wy);
+                ctx.stroke();
+            }
+
+            // ป้ายบอกระยะทางแบบซุ้มทุ่นลอยน้ำในมุมมอง 3D
+            const currM = Math.floor(getCurrentDistanceMeters() / 10) * 10;
+            for (let m = currM + 10; m <= currM + 30; m += 10) {
+                const worldX = Math.min(270, W * 0.32) + m * PIXELS_PER_METER;
+                const forwardDist = worldX - krathong.x;
+                const proj = projectPOVPoint(forwardDist, krathong.laneOffsetY);
+                if (proj.visible) {
+                    ctx.save();
+                    ctx.translate(W * 0.5, proj.y);
+                    ctx.scale(proj.scale * 0.75, proj.scale * 0.75);
+                    ctx.fillStyle = 'rgba(30, 41, 59, 0.85)';
+                    ctx.strokeStyle = m === POV_END_METERS ? '#a855f7' : '#fbbf24';
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.roundRect(-42, -16, 84, 24, 6);
+                    ctx.fill();
+                    ctx.stroke();
+                    ctx.fillStyle = '#fde047';
+                    ctx.font = 'bold 12px Kanit';
+                    ctx.textAlign = 'center';
+                    ctx.fillText(`ระยะ ${m} ม.`, 0, 1);
+                    ctx.restore();
+                }
+            }
+
+            // 3. วาดอุปสรรคข้างหน้าเรียงจากไกลมาใกล้ (Painter's Algorithm)
+            const visibleObstacles = obstacles
+                .map(ob => ({
+                    ob,
+                    forwardDist: ob.x - krathong.x,
+                    proj: projectPOVPoint(ob.x - krathong.x, ob.laneOffsetY)
+                }))
+                .filter(item => item.proj.visible)
+                .sort((a, b) => b.forwardDist - a.forwardDist);
+
+            visibleObstacles.forEach(({ ob, proj }) => {
+                ctx.save();
+                ctx.translate(proj.x, proj.y);
+                ctx.scale(proj.scale, proj.scale);
+
+                // A. เด็กดำน้ำโผล่หน้ามาคว้ากระทงแบบประชิดหน้าจอ!
+                if (ob.type === 'snatcher_kid') {
+                    const bobY = Math.sin(ob.bobPhase) * 4;
+
+                    // วงน้ำกระเพื่อมเตือนภัย
+                    ctx.strokeStyle = ob.state === 'lunging' ? 'rgba(244, 63, 94, 0.8)' : 'rgba(251, 191, 36, 0.35)';
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.ellipse(0, 6, 36, 14, 0, 0, Math.PI * 2);
+                    ctx.stroke();
+
+                    // หัวเด็กหันหน้าตรงจ้องผู้เล่น
+                    ctx.fillStyle = '#b45309';
+                    ctx.beginPath();
+                    ctx.arc(0, bobY - 6, 17, Math.PI, 0, false);
+                    ctx.fill();
+
+                    // ผมจุก
+                    ctx.fillStyle = '#0f172a';
+                    ctx.beginPath();
+                    ctx.arc(0, bobY - 22, 6.5, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    // แว่นดำน้ำคู่หน้า
+                    ctx.fillStyle = '#38bdf8';
+                    ctx.fillRect(-12, bobY - 13, 24, 8);
+                    ctx.strokeStyle = '#facc15';
+                    ctx.lineWidth = 1.8;
+                    ctx.strokeRect(-12, bobY - 13, 24, 8);
+
+                    // สองมือเด็กยื่นพุ่งเข้าหาหน้าจอกระทง!
+                    if (ob.state === 'lunging' || ob.state === 'grabbed') {
+                        ctx.fillStyle = '#d97706';
+                        ctx.beginPath();
+                        ctx.arc(-20, bobY + 4, 8, 0, Math.PI * 2);
+                        ctx.arc(20, bobY + 4, 8, 0, Math.PI * 2);
+                        ctx.fill();
+
+                        ctx.fillStyle = 'rgba(220, 38, 38, 0.95)';
+                        ctx.beginPath();
+                        ctx.roundRect(-50, bobY - 44, 100, 18, 6);
+                        ctx.fill();
+                        ctx.fillStyle = '#fff';
+                        ctx.font = 'bold 10px Kanit';
+                        ctx.textAlign = 'center';
+                        ctx.fillText('เสร็จโก๋! ขอเหรียญ 10!', 0, bobY - 31);
+                    }
+                }
+                // B. ปลาสวายยักษ์กระโดดขวางหน้า
+                else if (ob.type === 'giant_fish') {
+                    const jumpY = ob.isJumping ? -Math.sin(ob.jumpPhase) * 30 : 0;
+                    ctx.fillStyle = '#334155';
+                    ctx.beginPath();
+                    ctx.ellipse(0, jumpY, 26, 13, 0, 0, Math.PI * 2);
+                    ctx.fill();
+                    // ปากปลาอ้ากว้าง
+                    ctx.fillStyle = '#f43f5e';
+                    ctx.beginPath();
+                    ctx.arc(0, jumpY + 2, 7, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                // C. น้ำวนใต้น้ำข้างหน้า
+                else if (ob.type === 'whirlpool') {
+                    ctx.strokeStyle = 'rgba(56, 189, 248, 0.6)';
+                    ctx.lineWidth = 2.5;
+                    ctx.beginPath();
+                    ctx.ellipse(0, 0, 42, 16, 0, 0, Math.PI * 2);
+                    ctx.stroke();
+                    ctx.beginPath();
+                    ctx.ellipse(0, 0, 22, 8, 0, 0, Math.PI * 2);
+                    ctx.stroke();
+                }
+                // D. คลื่นเรือด่วนซัดเข้ามาหาหน้ากระทง
+                else if (ob.type === 'boat_wave') {
+                    ctx.strokeStyle = 'rgba(224, 242, 254, 0.9)';
+                    ctx.lineWidth = 5;
+                    ctx.beginPath();
+                    ctx.moveTo(-65, 0);
+                    ctx.quadraticCurveTo(0, -24, 65, 0);
+                    ctx.stroke();
+                }
+
+                ctx.restore();
+            });
+
+            // 4. วาดหัวกระทง ดอกไม้ ธูป และเปลวเทียนในมุมมองบุคคลที่หนึ่ง (Foreground POV)
+            drawPOVForegroundKrathong(time);
+        }
+
+        function drawPOVForegroundKrathong(time) {
+            const spec = KRATHONG_TYPES[selectedTypeKey];
+            const swayX = Math.sin(time * 2.2) * 8 - (krathong.laneVy * 9);
+            const bobY = Math.cos(time * 2.8) * 5 + krathong.submerged * 1.5;
+            const tiltAngle = (krathong.angle * 0.6) + (krathong.laneVy * 0.04);
+
+            ctx.save();
+            ctx.translate(W * 0.5 + swayX, H - 32 + bobY);
+            ctx.rotate(tiltAngle);
+
+            // แสงเทียนส่องสว่างรอบหัวกระทงในมุมมอง POV
+            if (krathong.flameAlive) {
+                const povGlow = ctx.createRadialGradient(0, -105, 10, 0, -90, 230);
+                povGlow.addColorStop(0, 'rgba(251, 191, 36, 0.48)');
+                povGlow.addColorStop(0.5, 'rgba(249, 115, 22, 0.16)');
+                povGlow.addColorStop(1, 'rgba(249, 115, 22, 0)');
+                ctx.fillStyle = povGlow;
+                ctx.beginPath();
+                ctx.arc(0, -95, 230, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            // ฐานกระทงด้านหน้าขนาดใหญ่
+            ctx.fillStyle = spec.baseColor;
+            ctx.beginPath();
+            ctx.ellipse(0, 18, 155, 42, 0, Math.PI, 0, false);
+            ctx.fill();
+
+            // กลีบกระทงเรียงรายด้านหน้ากล้อง
+            ctx.fillStyle = spec.petalColor;
+            for (let i = -120; i <= 120; i += 30) {
+                ctx.beginPath();
+                ctx.moveTo(i - 22, 8);
+                ctx.lineTo(i, -42 - Math.abs(120 - Math.abs(i)) * 0.08);
+                ctx.lineTo(i + 22, 8);
+                ctx.closePath();
+                ctx.fill();
+            }
+
+            // เหรียญ 10 บาทวางเด่นอยู่หน้ากระทง (เป้าสายตาเด็กเก็บเหรียญ!)
+            ctx.fillStyle = '#fde047';
+            ctx.strokeStyle = '#ca8a04';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.ellipse(38, -8, 16, 10, 0.15, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+            ctx.fillStyle = '#854d0e';
+            ctx.font = 'bold 10px Kanit';
+            ctx.textAlign = 'center';
+            ctx.fillText('10฿', 38, -4);
+
+            // ธูป 3 ดอกและเทียนเล่มใหญ่ตรงหน้าผู้เล่น
+            ctx.strokeStyle = '#dc2626';
+            ctx.lineWidth = 3.5;
+            [-14, 0, 14].forEach(ix => {
+                ctx.beginPath();
+                ctx.moveTo(ix, -20);
+                ctx.lineTo(ix * 1.5, -108);
+                ctx.stroke();
+            });
+
+            // เล่มเทียนตรงกลาง
+            ctx.fillStyle = '#fef08a';
+            ctx.beginPath();
+            ctx.roundRect(-8, -92, 16, 68, 4);
+            ctx.fill();
+
+            // เปลวเทียนพริ้วไหวตรงหน้ากล้อง
+            if (krathong.flameAlive) {
+                const flicker = Math.sin(performance.now() * 0.03) * 5;
+                ctx.fillStyle = '#f97316';
+                ctx.beginPath();
+                ctx.moveTo(flicker, -135);
+                ctx.quadraticCurveTo(18, -106, 0, -92);
+                ctx.quadraticCurveTo(-18, -106, flicker, -135);
+                ctx.fill();
+
+                ctx.fillStyle = '#fef9c3';
+                ctx.beginPath();
+                ctx.arc(0, -104, 6, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            ctx.restore();
+
+            // กรอบ Vignette และป้ายบอกสถานะกล้อง POV มุมบนจอ
+            ctx.save();
+            ctx.strokeStyle = 'rgba(168, 85, 247, 0.35)';
+            ctx.lineWidth = 4;
+            ctx.strokeRect(8, 8, W - 16, H - 16);
+            ctx.restore();
+        }
+
+        function drawTempleSilhouette() {
+            const parallaxX = -(cameraX * 0.22) % 900;
+            for (let repeat = -1; repeat <= 2; repeat++) {
+                const baseX = parallaxX + repeat * 900;
+                ctx.fillStyle = '#090d1f';
+
+                // แนวต้นไม้และศาลาวัดริมน้ำ
+                ctx.fillRect(baseX, riverSurfaceY - 22, 900, 24);
+
+                // เจดีย์ทรงไทย
+                ctx.beginPath();
+                ctx.moveTo(baseX + 180, riverSurfaceY - 20);
+                ctx.lineTo(baseX + 215, riverSurfaceY - 155);
+                ctx.lineTo(baseX + 250, riverSurfaceY - 20);
+                ctx.closePath();
+                ctx.fill();
+
+                // ยอดฉัตรสีทองเรืองแสงเบาๆ
+                ctx.strokeStyle = 'rgba(251, 191, 36, 0.45)';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(baseX + 215, riverSurfaceY - 155);
+                ctx.lineTo(baseX + 215, riverSurfaceY - 185);
+                ctx.stroke();
+
+                // หลังคาโบสถ์วัดไทย
+                ctx.fillStyle = '#0b1126';
+                ctx.beginPath();
+                ctx.moveTo(baseX + 290, riverSurfaceY - 20);
+                ctx.lineTo(baseX + 320, riverSurfaceY - 85);
+                ctx.lineTo(baseX + 430, riverSurfaceY - 85);
+                ctx.lineTo(baseX + 460, riverSurfaceY - 20);
+                ctx.closePath();
+                ctx.fill();
+
+                // ราวไฟงานวัดประดับริมตลิ่ง
+                for (let lx = 50; lx < 850; lx += 45) {
+                    ctx.fillStyle = lx % 90 === 0 ? '#fbbf24' : '#f43f5e';
+                    ctx.beginPath();
+                    ctx.arc(baseX + lx, riverSurfaceY - 24, 3, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            }
+        }
+
+        function drawRiverWavesAndDistanceMarkers() {
+            // เส้นระลอกน้ำไหล
+            ctx.strokeStyle = 'rgba(125, 211, 252, 0.14)';
+            ctx.lineWidth = 2;
+            const time = performance.now() * 0.002;
+            for (let row = 0; row < 6; row++) {
+                const y = riverSurfaceY + 28 + row * 38;
+                ctx.beginPath();
+                for (let x = 0; x < W; x += 40) {
+                    const waveY = y + Math.sin(time + (x + cameraX) * 0.015 + row) * 4;
+                    if (x === 0) ctx.moveTo(x, waveY);
+                    else ctx.lineTo(x, waveY);
+                }
+                ctx.stroke();
+            }
+
+            // ป้ายทุ่นบอกระยะทุกๆ 10 เมตร
+            const startMeter = Math.max(10, Math.floor((cameraX - 200) / (PIXELS_PER_METER * 10)) * 10);
+            const endMeter = startMeter + 60;
+            for (let m = startMeter; m <= endMeter; m += 10) {
+                const worldX = 240 + m * PIXELS_PER_METER;
+                const screenX = worldX - cameraX;
+                if (screenX < -60 || screenX > W + 60) continue;
+
+                const buoyY = riverSurfaceY + 8;
+                ctx.fillStyle = '#1e293b';
+                ctx.strokeStyle = '#fbbf24';
+                ctx.lineWidth = 1.5;
+                ctx.beginPath();
+                ctx.roundRect(screenX - 24, buoyY - 22, 48, 20, 6);
+                ctx.fill();
+                ctx.stroke();
+
+                ctx.fillStyle = '#fde047';
+                ctx.font = 'bold 11px Kanit';
+                ctx.textAlign = 'center';
+                ctx.fillText(`${m} ม.`, screenX, buoyY - 8);
+            }
+        }
+
+        function drawWoodenPier() {
+            const pierEndScreenX = Math.min(270, W * 0.32) - cameraX - 25;
+            if (pierEndScreenX < -200) return;
+
+            const pierTopY = riverSurfaceY + 12;
+            // เสาไม้ท่าน้ำ
+            ctx.fillStyle = '#451a03';
+            ctx.fillRect(pierEndScreenX - 180, pierTopY, 18, 160);
+            ctx.fillRect(pierEndScreenX - 35, pierTopY, 20, 175);
+
+            // พื้นกระดานท่าน้ำ
+            ctx.fillStyle = '#78350f';
+            ctx.beginPath();
+            ctx.roundRect(-20, pierTopY - 12, pierEndScreenX + 20, 22, 6);
+            ctx.fill();
+
+            // บันไดท่าน้ำจุ่มลงแม่น้ำ
+            ctx.fillStyle = '#92400e';
+            for (let s = 0; s < 3; s++) {
+                ctx.fillRect(pierEndScreenX - 10 + s * 14, pierTopY + s * 10, 22, 10);
+            }
+
+            // โคมไฟหัวเสาท่าน้ำ
+            ctx.fillStyle = '#fef08a';
+            ctx.beginPath();
+            ctx.arc(pierEndScreenX - 25, pierTopY - 45, 9, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = '#451a03';
+            ctx.fillRect(pierEndScreenX - 28, pierTopY - 36, 6, 26);
+        }
+
+        function drawKrathong(screenX, screenY, typeKey, angleRad, flameAlive) {
+            ctx.save();
+            ctx.translate(screenX, screenY);
+            ctx.rotate(angleRad);
+
+            const spec = KRATHONG_TYPES[typeKey];
+
+            // ถ้าเป็นกระทงอัปโหลดพิเศษและมีรูปภาพของผู้เล่นแล้ว ให้วาดรูปภาพแทน
+            if (typeKey === 'custom' && customKrathongImage) {
+                const imgW = 75;
+                const imgH = 75;
+                ctx.save();
+                // ทำเงาใต้รูปภาพกระทง
+                if (flameAlive) {
+                    const candleGlow = ctx.createRadialGradient(0, -10, 4, 0, -10, 58);
+                    candleGlow.addColorStop(0, 'rgba(251, 191, 36, 0.55)');
+                    candleGlow.addColorStop(1, 'rgba(251, 191, 36, 0)');
+                    ctx.fillStyle = candleGlow;
+                    ctx.beginPath();
+                    ctx.arc(0, -10, 58, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                ctx.beginPath();
+                ctx.arc(0, 0, imgW / 2 + 4, 0, Math.PI * 2);
+                ctx.fillStyle = 'rgba(15, 23, 42, 0.75)';
+                ctx.fill();
+                ctx.strokeStyle = '#fbbf24';
+                ctx.lineWidth = 2.5;
+                ctx.stroke();
+
+                ctx.clip();
+                ctx.drawImage(customKrathongImage, -imgW / 2, -imgH / 2, imgW, imgH);
+                ctx.restore();
+
+                // วาดเทียนและเปลวไฟปักไว้ด้านบนกระทงอัปโหลด
+                ctx.strokeStyle = '#dc2626';
+                ctx.lineWidth = 1.5;
+                ctx.beginPath();
+                ctx.moveTo(0, -imgH / 2 + 5);
+                ctx.lineTo(0, -imgH / 2 - 18);
+                ctx.stroke();
+
+                ctx.fillStyle = '#fef08a';
+                ctx.fillRect(-2, -imgH / 2 - 14, 4, 10);
+
+                if (flameAlive) {
+                    const flicker = Math.sin(performance.now() * 0.025) * 2;
+                    ctx.fillStyle = '#f97316';
+                    ctx.beginPath();
+                    ctx.moveTo(0 + flicker, -imgH / 2 - 27);
+                    ctx.quadraticCurveTo(5, -imgH / 2 - 18, 0, -imgH / 2 - 14);
+                    ctx.quadraticCurveTo(-5, -imgH / 2 - 18, 0 + flicker, -imgH / 2 - 27);
+                    ctx.fill();
+                }
+                ctx.restore();
+                return;
+            }
+
+            // เงาสะท้อนแสงเทียนในน้ำ
+            if (flameAlive) {
+                const candleGlow = ctx.createRadialGradient(0, -18, 4, 0, -10, 58);
+                candleGlow.addColorStop(0, 'rgba(251, 191, 36, 0.55)');
+                candleGlow.addColorStop(1, 'rgba(251, 191, 36, 0)');
+                ctx.fillStyle = candleGlow;
+                ctx.beginPath();
+                ctx.arc(0, -10, 58, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            // ฐานกระทง (หยวกกล้วย / ขนมปังอบ / ก้อนน้ำแข็ง)
+            ctx.fillStyle = spec.baseColor;
+            ctx.beginPath();
+            ctx.roundRect(-28, -4, 56, 16, 8);
+            ctx.fill();
+
+            // กลีบกระทงเรียงซ้อน
+            ctx.fillStyle = spec.petalColor;
+            for (let i = -22; i <= 22; i += 11) {
+                ctx.beginPath();
+                ctx.moveTo(i - 7, -4);
+                ctx.lineTo(i, -19);
+                ctx.lineTo(i + 7, -4);
+                ctx.closePath();
+                ctx.fill();
+            }
+
+            // เหรียญ 10 บาทเหน็บข้างกระทง (ล่อตาล่อใจเด็กเก็บกระทง!)
+            ctx.fillStyle = '#fde047';
+            ctx.strokeStyle = '#ca8a04';
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.arc(12, -6, 5.5, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+
+            // ธูป 3 ดอกและเทียนตรงกลาง
+            ctx.strokeStyle = '#dc2626';
+            ctx.lineWidth = 1.5;
+            [-4, 0, 4].forEach(ix => {
+                ctx.beginPath();
+                ctx.moveTo(ix, -12);
+                ctx.lineTo(ix * 1.4, -30);
+                ctx.stroke();
+            });
+
+            // เล่มเทียน
+            ctx.fillStyle = '#fef08a';
+            ctx.fillRect(-2.5, -26, 5, 14);
+
+            // เปลวเทียนพริ้วไหว
+            if (flameAlive) {
+                const flicker = Math.sin(performance.now() * 0.025) * 2;
+                ctx.fillStyle = '#f97316';
+                ctx.beginPath();
+                ctx.moveTo(0 + flicker, -39);
+                ctx.quadraticCurveTo(6, -30, 0, -26);
+                ctx.quadraticCurveTo(-6, -30, 0 + flicker, -39);
+                ctx.fill();
+
+                ctx.fillStyle = '#fef9c3';
+                ctx.beginPath();
+                ctx.arc(0, -30, 2.5, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            ctx.restore();
+        }
+
+        function drawObstacles() {
+            const baseWaterY = riverSurfaceY + 45;
+
+            obstacles.forEach(ob => {
+                const sx = ob.x - cameraX;
+                const sy = baseWaterY + ob.laneOffsetY;
+                if (sx < -120 || sx > W + 150) return;
+
+                ctx.save();
+                ctx.translate(sx, sy);
+
+                // 1) วาดเด็กดำน้ำดักเก็บเหรียญกระทง
+                if (ob.type === 'snatcher_kid') {
+                    const bobY = Math.sin(ob.bobPhase) * 4;
+
+                    // วงรัศมีเตือนภัยรอบตัวเด็ก
+                    ctx.strokeStyle = ob.state === 'lunging' ? 'rgba(244, 63, 94, 0.55)' : 'rgba(251, 191, 36, 0.22)';
+                    ctx.lineWidth = 1.5;
+                    ctx.setLineDash([5, 5]);
+                    ctx.beginPath();
+                    ctx.ellipse(0, 4, ob.grabRadius, ob.grabRadius * 0.55, 0, 0, Math.PI * 2);
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+
+                    // แขนที่ยื่นมาคว้ากระทง
+                    if (ob.state === 'lunging' || ob.state === 'grabbed') {
+                        ctx.strokeStyle = '#b45309';
+                        ctx.lineWidth = 6;
+                        ctx.lineCap = 'round';
+                        ctx.beginPath();
+                        ctx.moveTo(-8, bobY + 2);
+                        ctx.lineTo(-22 - ob.armReach, bobY - 4);
+                        ctx.stroke();
+                    }
+
+                    // หัวเด็กโผล่พ้นน้ำครึ่งหน้า + แว่นตาดำน้ำ
+                    ctx.fillStyle = '#b45309';
+                    ctx.beginPath();
+                    ctx.arc(0, bobY - 4, 15, Math.PI, 0, false);
+                    ctx.fill();
+
+                    // ทรงผมจุก/ตั้งแสบๆ
+                    ctx.fillStyle = '#0f172a';
+                    ctx.beginPath();
+                    ctx.arc(0, bobY - 18, 6, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    // แว่นดำน้ำ + ตาวาวจ้องเหรียญ 10 บาท
+                    ctx.fillStyle = '#38bdf8';
+                    ctx.fillRect(-13, bobY - 11, 11, 7);
+                    ctx.strokeStyle = '#facc15';
+                    ctx.lineWidth = 1.5;
+                    ctx.strokeRect(-13, bobY - 11, 11, 7);
+
+                    // ป้ายคำพูดกวนๆ เหนือหัวเด็ก
+                    if (ob.state === 'lunging') {
+                        ctx.fillStyle = 'rgba(220, 38, 38, 0.9)';
+                        ctx.beginPath();
+                        ctx.roundRect(-48, bobY - 42, 96, 18, 6);
+                        ctx.fill();
+                        ctx.fillStyle = '#fff';
+                        ctx.font = 'bold 10px Kanit';
+                        ctx.textAlign = 'center';
+                        ctx.fillText('ขอเหรียญ 10 นะพี่!', 0, bobY - 29);
+                    }
+                }
+
+                // 2) วาดปลาสวาย / ปลาชะโดยักษ์
+                else if (ob.type === 'giant_fish') {
+                    const jumpY = ob.isJumping ? -Math.sin(ob.jumpPhase) * 32 : 0;
+                    ctx.fillStyle = '#334155';
+                    ctx.beginPath();
+                    ctx.ellipse(0, jumpY, 24, 10, -0.2, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    // ครีบหลังและปากอ้าฮุบขนมปัง
+                    ctx.fillStyle = '#f43f5e';
+                    ctx.beginPath();
+                    ctx.arc(-18, jumpY - 2, 6, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    ctx.fillStyle = '#94a3b8';
+                    ctx.font = '10px Kanit';
+                    ctx.textAlign = 'center';
+                    ctx.fillText('🐟 ปลาเจ้าถิ่น', 0, 22);
+                }
+
+                // 3) วาดน้ำวนใต้น้ำ
+                else if (ob.type === 'whirlpool') {
+                    ctx.rotate(ob.rotation);
+                    ctx.strokeStyle = 'rgba(56, 189, 248, 0.45)';
+                    ctx.lineWidth = 2.5;
+                    for (let r = 12; r <= 48; r += 12) {
+                        ctx.beginPath();
+                        ctx.arc(0, 0, r, 0, Math.PI * 1.4);
+                        ctx.stroke();
+                    }
+                }
+
+                // 4) วาดคลื่นเรือด่วนเจ้าพระยา
+                else if (ob.type === 'boat_wave') {
+                    ctx.strokeStyle = 'rgba(224, 242, 254, 0.8)';
+                    ctx.lineWidth = 5;
+                    ctx.beginPath();
+                    ctx.moveTo(0, -35);
+                    ctx.quadraticCurveTo(-24, 25, 0, 95);
+                    ctx.stroke();
+
+                    ctx.fillStyle = '#7dd3fc';
+                    ctx.font = 'bold 11px Kanit';
+                    ctx.textAlign = 'center';
+                    ctx.fillText('🌊 คลื่นเรือด่วน', -10, -42);
+                }
+
+                ctx.restore();
+            });
+        }
+
+        function drawVirtualHandAndPowerMeter() {
+            const hx = hand.currX - cameraX;
+            const hy = hand.currY;
+            const kx = krathong.x - cameraX;
+            const ky = krathong.y;
+
+            // วาดเส้นประทำนายวิถีการส่งกระทงเมื่อกำลังง้างมือ
+            if (hand.isDragging && hand.calculatedPower > 5) {
+                const angleRad = (hand.calculatedAngle * Math.PI) / 180;
+                const powerLen = hand.calculatedPower * 1.6;
+
+                ctx.save();
+                ctx.strokeStyle = hand.calculatedPower > 112 ? '#f43f5e' : '#fbbf24';
+                ctx.lineWidth = 3;
+                ctx.setLineDash([8, 6]);
+                ctx.beginPath();
+                ctx.moveTo(kx, ky);
+                ctx.quadraticCurveTo(
+                    kx + powerLen * 0.6,
+                    ky + Math.sin(angleRad) * 55,
+                    kx + powerLen * 1.3,
+                    ky + Math.sin(angleRad) * 90
+                );
+                ctx.stroke();
+                ctx.restore();
+
+                // เกจวัดแรงเหวี่ยงเหนือมือผู้เล่น
+                const meterW = 140;
+                const meterH = 14;
+                const mx = hx - meterW / 2;
+                const my = hy - 58;
+
+                ctx.fillStyle = 'rgba(15, 23, 42, 0.9)';
+                ctx.beginPath();
+                ctx.roundRect(mx - 4, my - 24, meterW + 8, meterH + 30, 8);
+                ctx.fill();
+
+                ctx.fillStyle = '#334155';
+                ctx.fillRect(mx, my, meterW, meterH);
+
+                // สีเกจ: เขียว/ทอง = พอดี, แดง = แรงเกินระวังคว่ำ!
+                let barColor = '#38bdf8';
+                if (hand.calculatedPower >= 75 && hand.calculatedPower <= 108) barColor = '#22c55e';
+                else if (hand.calculatedPower > 108) barColor = '#f43f5e';
+                else if (hand.calculatedPower >= 45) barColor = '#fbbf24';
+
+                const fillW = Math.min(meterW, (hand.calculatedPower / 135) * meterW);
+                ctx.fillStyle = barColor;
+                ctx.fillRect(mx, my, fillW, meterH);
+
+                ctx.fillStyle = '#fff';
+                ctx.font = 'bold 11px Kanit';
+                ctx.textAlign = 'center';
+                const statusTxt = hand.calculatedPower > 112
+                    ? `แรงเหวี่ยง ${Math.round(hand.calculatedPower)}% (ระวังคว่ำ!)`
+                    : `แรงเหวี่ยง ${Math.round(hand.calculatedPower)}% | มุม ${Math.round(-hand.calculatedAngle)}°`;
+                ctx.fillText(statusTxt, hx, my - 6);
+            }
+
+            // วาดมือจำลองประคอง/ผลักกระทง
+            ctx.save();
+            ctx.translate(hx, hy);
+            const handAngle = hand.isDragging ? (hand.calculatedAngle * Math.PI) / 360 : 0;
+            ctx.rotate(handAngle);
+
+            // วงกลมเรืองแสงรอบมือเพื่อให้เห็นจุดลากชัดเจน
+            ctx.fillStyle = hand.isDragging ? 'rgba(251, 191, 36, 0.3)' : 'rgba(56, 189, 248, 0.25)';
+            ctx.beginPath();
+            ctx.arc(0, 0, 32, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.font = '34px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('🫱', 0, 0);
+            ctx.restore();
+        }
+
+        /**
+         * ============================================================================
+         * 10. PARTICLES, FIREWORKS & FLOATING TEXTS
+         * ============================================================================
+         */
+        function spawnSplashParticles(worldX, worldY, count = 12, color = '#38bdf8') {
+            for (let i = 0; i < count; i++) {
+                waterParticles.push({
+                    x: worldX,
+                    y: worldY,
+                    vx: (Math.random() - 0.5) * 6,
+                    vy: -Math.random() * 5.5 - 1.5,
+                    r: Math.random() * 3.5 + 1.5,
+                    alpha: 1,
+                    color: color
+                });
+            }
+        }
+
+        function spawnFirework() {
+            const fx = Math.random() * W * 0.85 + W * 0.08;
+            const fy = Math.random() * (riverSurfaceY * 0.5) + 40;
+            const colors = ['#fbbf24', '#f43f5e', '#38bdf8', '#a855f7', '#4ade80'];
+            const color = colors[Math.floor(Math.random() * colors.length)];
+
+            for (let i = 0; i < 24; i++) {
+                const angle = (Math.PI * 2 * i) / 24;
+                const speed = Math.random() * 2.5 + 1.2;
+                fireworks.push({
+                    x: fx,
+                    y: fy,
+                    vx: Math.cos(angle) * speed,
+                    vy: Math.sin(angle) * speed,
+                    alpha: 1,
+                    color: color
+                });
+            }
+            if (gameState === 'SAILING' && Math.random() < 0.35) {
+                sound.playFireworkPop();
+            }
+        }
+
+        function addFloatingText(worldX, worldY, text, color = '#fbbf24') {
+            floatingTexts.push({
+                x: worldX,
+                y: worldY,
+                text: text,
+                color: color,
+                alpha: 1.0,
+                vy: -1.1
+            });
+        }
+
+        function updateFireworksAndParticles() {
+            fireworks.forEach(fw => {
+                fw.x += fw.vx;
+                fw.y += fw.vy;
+                fw.vy += 0.04;
+                fw.alpha -= 0.018;
+            });
+            fireworks = fireworks.filter(fw => fw.alpha > 0);
+
+            waterParticles.forEach(wp => {
+                wp.x += wp.vx;
+                wp.y += wp.vy;
+                wp.vy += 0.25;
+                wp.alpha -= 0.03;
+            });
+            waterParticles = waterParticles.filter(wp => wp.alpha > 0);
+
+            floatingTexts.forEach(ft => {
+                ft.y += ft.vy;
+                ft.alpha -= 0.016;
+            });
+            floatingTexts = floatingTexts.filter(ft => ft.alpha > 0);
+        }
+
+        function drawFireworks() {
+            fireworks.forEach(fw => {
+                ctx.save();
+                ctx.globalAlpha = Math.max(0, fw.alpha);
+                ctx.fillStyle = fw.color;
+                ctx.beginPath();
+                ctx.arc(fw.x, fw.y, 2.5, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            });
+        }
+
+        function drawParticlesAndFloatingTexts() {
+            waterParticles.forEach(wp => {
+                ctx.save();
+                ctx.globalAlpha = Math.max(0, wp.alpha);
+                ctx.fillStyle = wp.color;
+                ctx.beginPath();
+                ctx.arc(wp.x - cameraX, wp.y, wp.r, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            });
+
+            floatingTexts.forEach(ft => {
+                ctx.save();
+                ctx.globalAlpha = Math.max(0, ft.alpha);
+                ctx.font = 'bold 14px Kanit';
+                ctx.textAlign = 'center';
+                ctx.fillStyle = '#000';
+                ctx.fillText(ft.text, ft.x - cameraX + 1, ft.y + 1);
+                ctx.fillStyle = ft.color;
+                ctx.fillText(ft.text, ft.x - cameraX, ft.y);
+                ctx.restore();
+            });
+        }
+
+        /**
+         * ============================================================================
+         * 11. UI & HUD CONTROLLERS
+         * ============================================================================
+         */
+        function getCurrentDistanceMeters() {
+            const startPierX = Math.min(270, W * 0.32);
+            return Math.max(0, (krathong.x - startPierX) / PIXELS_PER_METER);
+        }
+
+        function updateHUD() {
+            const dist = getCurrentDistanceMeters();
+            document.getElementById('currentDistanceText').textContent = dist.toFixed(1);
+
+            if (dist > bestDistance) {
+                bestDistance = dist;
+                localStorage.setItem('loyKrathongBestDist', bestDistance.toFixed(1));
+                document.getElementById('bestDistanceText').textContent = bestDistance.toFixed(1);
+            }
+
+            document.getElementById('splashCountText').textContent = krathong.splashesLeft;
+            const splashBtn = document.getElementById('btnSplashForward');
+            splashBtn.disabled = krathong.splashesLeft <= 0;
+            splashBtn.style.opacity = krathong.splashesLeft <= 0 ? '0.5' : '1';
+
+            // อัปเดตแถบสถานะความสมบูรณ์กระทง
+            const pct = Math.round(krathong.integrity);
+            document.getElementById('statusHudPct').textContent = `${pct}%`;
+            document.getElementById('statusHudBar').style.width = `${pct}%`;
+            document.getElementById('statusHudLabel').textContent =
+                selectedTypeKey === 'ice' ? 'น้ำแข็งยังไม่ละลาย' : 'ความสมบูรณ์กระทง';
+
+            // อัปเดตแถบแรงส่งคงเหลือจากการเหวี่ยง (Momentum Reserve)
+            const momPct = Math.min(100, Math.round((krathong.momentumReserve / Math.max(1, krathong.maxMomentumReserve)) * 100));
+            const momText = document.getElementById('momentumHudPct');
+            const momBar = document.getElementById('momentumHudBar');
+            if (momText && momBar) {
+                momText.textContent = `${momPct}%`;
+                momBar.style.width = `${momPct}%`;
+            }
+
+            // อัปเดตแถบแผนที่เส้นทางฝัน (0m -> โซน POV อัตโนมัติ 95-180m -> ปลายทางฝัน 240m)
+            const journeyPct = Math.min(100, (dist / DREAM_GOAL_METERS) * 100);
+            const journeyBar = document.getElementById('journeyProgressBar');
+            if (journeyBar) journeyBar.style.width = `${journeyPct}%`;
+
+            const camBadge = document.getElementById('cameraModeBadge');
+            if (camBadge) {
+                if (viewMode === 'POV') {
+                    camBadge.textContent = '🎥 มุมมอง POV (กลางน้ำ)';
+                    camBadge.className = 'bg-purple-500/30 border border-purple-400 text-purple-200 px-1.5 py-0.2 rounded font-semibold';
+                } else {
+                    camBadge.textContent = dist >= POV_END_METERS ? '🌕 โค้งสุดท้ายใกล้ถึงฝัน' : '📐 มุมมองด้านข้าง';
+                    camBadge.className = 'bg-amber-500/20 border border-amber-400/40 text-amber-300 px-1.5 py-0.2 rounded font-semibold';
+                }
+            }
+        }
+
+        function startAimingPhase() {
+            gameState = 'AIMING';
+            document.getElementById('selectionModal').classList.add('hidden');
+            document.getElementById('resultModal').classList.add('hidden');
+            document.getElementById('sailingControls').classList.add('hidden');
+            document.getElementById('warningBanner').classList.add('hidden');
+            document.getElementById('cameraTransitionBanner').classList.add('hidden');
+            document.getElementById('momentumHudBox').classList.add('hidden');
+            document.getElementById('journeyProgressBox').classList.add('hidden');
+            document.getElementById('aimGuideOverlay').classList.remove('hidden');
+            resetKrathongOnPier();
+        }
+
+        function triggerGameOver(emoji, title, reason) {
+            gameState = 'ENDED';
+            document.getElementById('sailingControls').classList.add('hidden');
+            document.getElementById('warningBanner').classList.add('hidden');
+            document.getElementById('cameraTransitionBanner').classList.add('hidden');
+            document.getElementById('aimGuideOverlay').classList.add('hidden');
+
+            document.getElementById('resultEmoji').textContent = emoji;
+            document.getElementById('resultTitle').textContent = title;
+            document.getElementById('resultReason').textContent = reason;
+
+            const finalDist = getCurrentDistanceMeters();
+            document.getElementById('finalDistanceText').textContent = finalDist.toFixed(1);
+            document.getElementById('finalBestText').textContent = bestDistance.toFixed(1);
+            document.getElementById('statLaunchSpeed').textContent = krathong.maxLaunchSpeed.toFixed(1);
+            document.getElementById('statDodgedKids').textContent = krathong.dodgedKidsCount;
+
+            document.getElementById('resultModal').classList.remove('hidden');
+        }
+
+        // Event Listeners สำหรับการ์ดเลือกกระทงและอัปโหลดรูปภาพ
+        document.querySelectorAll('.krathong-card').forEach(card => {
+            card.addEventListener('click', (e) => {
+                if (e.target.tagName === 'INPUT' || e.target.closest('label')) return;
+
+                document.querySelectorAll('.krathong-card').forEach(c => c.classList.remove('selected'));
+                card.classList.add('selected');
+                selectedTypeKey = card.getAttribute('data-type');
+                sound.init();
+                sound.playSplash(0.4);
+            });
+        });
+
+        // จัดการอัปโหลดไฟล์รูปกระทงของผู้เล่น
+        const customInput = document.getElementById('customKrathongInput');
+        customInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                const img = new Image();
+                img.onload = function() {
+                    customKrathongImage = img;
+                    selectedTypeKey = 'custom';
+
+                    document.querySelectorAll('.krathong-card').forEach(c => c.classList.remove('selected'));
+                    document.querySelector('[data-type="custom"]').classList.add('selected');
+
+                    document.getElementById('customCardEmoji').innerHTML = `<img src="${event.target.result}" class="w-10 h-10 rounded-full object-cover border border-amber-400">`;
+                    sound.init();
+                    sound.playSplash(0.6);
+                };
+                img.src = event.target.result;
+            };
+            reader.readAsDataURL(file);
+        });
+
+        document.getElementById('btnStartGame').addEventListener('click', () => {
+            sound.init();
+            startAimingPhase();
+        });
+
+        document.getElementById('btnRetrySame').addEventListener('click', () => {
+            startAimingPhase();
+        });
+
+        document.getElementById('btnBackToSelect').addEventListener('click', () => {
+            gameState = 'SELECT';
+            document.getElementById('resultModal').classList.add('hidden');
+            document.getElementById('selectionModal').classList.remove('hidden');
+        });
+
+        document.getElementById('btnChangeKrathong').addEventListener('click', () => {
+            gameState = 'SELECT';
+            document.getElementById('resultModal').classList.add('hidden');
+            document.getElementById('sailingControls').classList.add('hidden');
+            document.getElementById('aimGuideOverlay').classList.add('hidden');
+            document.getElementById('selectionModal').classList.remove('hidden');
+        });
+
+        document.getElementById('btnToggleSound').addEventListener('click', () => {
+            const on = sound.toggle();
+            const icon = document.getElementById('soundIcon');
+            icon.className = on ? 'fa-solid fa-volume-high' : 'fa-solid fa-volume-xmark text-slate-400';
+        });
+
+        /**
+         * ============================================================================
+         * 12. MAIN ANIMATION LOOP
+         * ============================================================================
+         */
+        function gameLoop() {
+            updateGame();
+            drawScene();
+            requestAnimationFrame(gameLoop);
+        }
+
+        window.onload = function () {
+            resizeCanvas();
+            initBackgroundElements();
+            resetKrathongOnPier();
+            gameLoop();
+        };
+    </script>
+</body>
+</html>

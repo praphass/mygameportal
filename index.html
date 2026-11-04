@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Games Portal</title>
+    <!-- Tailwind CSS สำหรับจัดแต่งหน้าเว็บอย่างรวดเร็วและสวยงาม -->
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Prompt', sans-serif; }
+        .glass-card {
+            background: rgba(18, 18, 24, 0.75);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+    </style>
+</head>
+<body class="bg-[#0b0b0f] text-gray-100 min-h-screen flex flex-col items-center">
+
+    <!-- Header ส่วนหัวของ Portal -->
+    <header class="w-full max-w-xl px-4 py-6 sticky top-0 bg-[#0b0b0f]/80 backdrop-blur-md z-20 border-b border-white/5 flex justify-between items-center">
+        <div>
+            <h1 class="text-xl font-bold tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-500">
+                GAMES PORTAL
+            </h1>
+            <p class="text-xs text-gray-400">ไถเลื่อนเลือกเกมโปรด แล้วกดเล่นได้ทันที</p>
+        </div>
+        <div class="text-xs px-3 py-1 rounded-full bg-purple-950/60 border border-purple-500/30 text-purple-300">
+            v1.0.0
+        </div>
+    </header>
+
+    <!-- Main Feed Container (พื้นที่แสดงการ์ดเกมแนวตั้ง) -->
+    <main id="game-feed" class="w-full max-w-xl px-4 py-6 flex flex-col gap-6 pb-20">
+        <!-- การ์ดเกมจะถูกเรนเดอร์อัตโนมัติจาก JavaScript ด้านล่าง -->
+    </main>
+
+    <!-- Game Player Modal (หน้าต่างสำหรับเล่นเกมเมื่อกดปุ่มเล่น) -->
+    <div id="game-modal" class="fixed inset-0 bg-black/90 z-50 hidden flex flex-col">
+        <!-- Modal Header -->
+        <div class="flex justify-between items-center px-4 py-3 bg-zinc-900 border-b border-zinc-800">
+            <h2 id="modal-game-title" class="font-semibold text-sm text-purple-300">ชื่อเกม</h2>
+            <button onclick="closeGame()" class="px-3 py-1 bg-red-600/80 hover:bg-red-600 text-xs rounded-md text-white transition">
+                ปิดเกม / ออก
+            </button>
+        </div>
+        <!-- Game iframe Container -->
+        <div class="flex-1 w-full bg-black relative flex items-center justify-center">
+            <iframe id="game-frame" class="w-full h-full border-0" src=""></iframe>
+        </div>
+    </div>
+
+    <!-- Script สำหรับจัดการข้อมูลเกมและระบบเปิด-ปิดเกม -->
+    <script>
+        // ==========================================
+        // 🕹️ โซนสำหรับเพิ่มเกมใหม่ในอนาคต (เพิ่มข้อมูลตรงนี้ได้เลย)
+        // ==========================================
+        const gamesData = [
+            {
+                id: "loykrathong",
+                title: "ลอยกระทง (Loy Krathong Festival)",
+                genre: "Simulation / Casual",
+                description: "เกมจำลองบรรยากาศเทศกาลลอยกระทงไทย สัมผัสความสงบ ดึงกระทงลงน้ำ พร้อมอธิษฐานขอพรท่ามกลางแสงเทียนและเสียงเพลงประกอบสุดชิล",
+                howToPlay: "คลิกหรือแตะที่หน้าจอเพื่อเลือกและวางกระทงลงบนผิวน้ำ ควบคุมทิศทางและสัมผัสบรรยากาศยามค่ำคืน",
+                fileUrl: "games/loykrathong.html", // ชื่อไฟล์ HTML ของเกมนั้นๆ
+                bannerUrl: "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?auto=format&fit=crop&w=800&q=80" // รูปปกเกม (เปลี่ยนเป็นรูปจริงได้)
+            },
+            // ตัวอย่างเกมสำรองเผื่ออนาคต (Copy ไปเพิ่มได้เลย)
+            /*
+            {
+                id: "backstreet-rockstar",
+                title: "Backstreet Rockstar",
+                genre: "Rhythm / RPG",
+                description: "สวมบทบาทนักดนตรีอินดี้ท่องยุทธจักรย่านเมืองเก่า ฝึกซ้อมกีตาร์ และแสดงสดริมถนน",
+                howToPlay: "กดปุ่มตามจังหวะเพลงที่ไหลลงมาเพื่อสร้างสรรค์เสียงดนตรีให้สมบูรณ์",
+                fileUrl: "backstreet.html",
+                bannerUrl: "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?auto=format&fit=crop&w=800&q=80"
+            }
+            */
+        ];
+
+        // ฟังก์ชันเรนเดอร์การ์ดเกมลงในหน้าฟีดแนวตั้ง
+        function renderFeed() {
+            const feedContainer = document.getElementById('game-feed');
+            feedContainer.innerHTML = '';
+
+            gamesData.forEach(game => {
+                const card = document.createElement('div');
+                card.className = "glass-card rounded-2xl overflow-hidden shadow-lg transition-transform duration-300 hover:scale-[1.01]";
+                
+                card.innerHTML = `
+                    <!-- รูปภาพปกเกม -->
+                    <div class="relative h-48 w-full overflow-hidden bg-zinc-900">
+                        <img src="${game.bannerUrl}" alt="${game.title}" class="w-full h-full object-cover opacity-80 hover:opacity-100 transition duration-500">
+                        <span class="absolute top-3 left-3 bg-purple-600/90 text-white text-[10px] font-semibold px-2.5 py-1 rounded-full uppercase tracking-wider backdrop-blur-md">
+                            ${game.genre}
+                        </span>
+                    </div>
+
+                    <!-- รายละเอียดในการ์ด -->
+                    <div class="p-5 flex flex-col gap-3">
+                        <h3 class="text-lg font-bold text-white">${game.title}</h3>
+                        <p class="text-xs text-gray-300 leading-relaxed">${game.description}</p>
+                        
+                        <!-- วิธีการเล่นแบบย่อ -->
+                        <div class="bg-white/5 p-3 rounded-xl border border-white/5 text-xs text-gray-400">
+                            <span class="text-purple-400 font-semibold">🎯 วิธีการเล่น:</span> ${game.howToPlay}
+                        </div>
+
+                        <!-- ปุ่มกดเล่นเกม -->
+                        <button onclick="playGame('${game.fileUrl}', '${game.title}')" 
+                            class="mt-2 w-full py-3 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white font-medium text-sm rounded-xl shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer">
+                            <span>▶ เล่นเกมนี้เลย</span>
+                        </button>
+                    </div>
+                `;
+                feedContainer.appendChild(card);
+            });
+        }
+
+        // ฟังก์ชันเปิดเกมใน Modal
+        function playGame(fileUrl, title) {
+            document.getElementById('modal-game-title').innerText = title;
+            document.getElementById('game-frame').src = fileUrl;
+            document.getElementById('game-modal').classList.remove('hidden');
+            document.body.style.overflow = 'hidden'; // ล็อกสกॉलหน้าหลักไม่ให้เลื่อนซ้อน
+        }
+
+        // ฟังก์ชันปิดเกม
+        function closeGame() {
+            document.getElementById('game-modal').classList.add('hidden');
+            document.getElementById('game-frame.src').src = ''; // หยุดการทำงานเกมชั่วคราว
+            document.getElementById('game-frame').src = ''; 
+            document.body.style.overflow = 'auto'; // คืนค่าการสกॉल
+        }
+
+        // เริ่มต้นทำงานเมื่อโหลดหน้าเว็บ
+        window.onload = renderFeed;
+    </script>
+</body>
+</html>
